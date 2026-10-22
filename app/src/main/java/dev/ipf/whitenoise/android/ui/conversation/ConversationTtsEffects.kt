@@ -133,6 +133,7 @@ internal fun ConversationTtsAutoReadEffects(
             } ?: false
         }
     val lifecycleOwner = LocalContext.current.lifecycleOwner()
+    var entryBacklogConsumed by remember(controller, chatId) { mutableStateOf(false) }
     suspend fun projectEntry(record: AppMessageRecordFfi) = projectConversationTtsEntry(appState, controller, record)
 
     suspend fun autoReadBacklogEntries(): List<TtsSpeakableEntry> {
@@ -166,15 +167,21 @@ internal fun ConversationTtsAutoReadEffects(
     // initially withheld for membership verification.
     LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled) {
         if (!transcriptReadyToReveal) return@LaunchedEffect
-        if (appState.ownsTtsAutoReadSession(controller.group.groupIdHex)) return@LaunchedEffect
+        if (entryBacklogConsumed) return@LaunchedEffect
+        if (appState.ownsTtsAutoReadSession(controller.group.groupIdHex)) {
+            entryBacklogConsumed = true
+            return@LaunchedEffect
+        }
         val entries = autoReadBacklogEntries()
         if (entries.isNotEmpty()) {
-            appState.speakAloudAutoRead(
-                controller.group.groupIdHex,
-                entries,
-                Locale.getDefault(),
-                backgroundPreparation = true,
-            )
+            entryBacklogConsumed =
+                appState.speakAloudAutoRead(
+                    controller.group.groupIdHex,
+                    entries,
+                    Locale.getDefault(),
+                    backgroundPreparation = true,
+                    canCommit = { autoReadEnabled && appState.isConversationAutoRead(controller.group.groupIdHex) },
+                )
         }
     }
 
@@ -202,6 +209,9 @@ internal fun ConversationTtsAutoReadEffects(
                         .take(TTS_AUTO_READ_MAX_MESSAGES)
                         .mapNotNull { projectEntry(it.record) }
                 if (entries.isNotEmpty()) {
+                    // Projection can suspend; do not replace manual speech started meanwhile.
+                    val current = appState.ttsController.state.value
+                    if (current is TtsState.Speaking || current is TtsState.Paused || current is TtsState.Preparing) return@collect
                     appState.speakAloudAutoRead(
                         controller.group.groupIdHex,
                         entries,

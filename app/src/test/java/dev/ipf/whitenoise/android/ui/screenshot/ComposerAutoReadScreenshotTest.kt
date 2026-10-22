@@ -15,9 +15,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.github.takahirom.roborazzi.captureRoboImage
+import dev.ipf.whitenoise.android.ui.common.accountActionColors
 import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerPill
 import dev.ipf.whitenoise.android.ui.theme.WhiteNoiseTheme
-import dev.ipf.whitenoise.android.ui.common.accountActionColors
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

@@ -138,8 +138,11 @@ class TtsAutoReadWiringCoverageTest {
         )
         assertTrue(
             "reveal must not replace an already owned background queue",
-            "if (appState.ownsTtsAutoReadSession(controller.group.groupIdHex)) return@LaunchedEffect" in effects,
+            "if (appState.ownsTtsAutoReadSession(controller.group.groupIdHex)) {" in effects,
         )
+        assertTrue("toggling must not replay the entry backlog", "if (entryBacklogConsumed) return@LaunchedEffect" in effects)
+        assertTrue("new speech starts only in a resumed screen", "repeatOnLifecycle(Lifecycle.State.RESUMED)" in effects)
+        assertTrue("late preparation rechecks the foreground owner", "lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)" in effects)
     }
 
     @Test
