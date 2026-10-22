@@ -119,7 +119,7 @@ class TtsAutoReadWiringCoverageTest {
         assertTrue(
             "open-time auto-read must restart only for a revealed transcript",
             effects
-                .split("LaunchedEffect(controller, chatId, transcriptReadyToReveal)")
+                .split("LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled)")
                 .size == 2,
         )
         assertTrue(

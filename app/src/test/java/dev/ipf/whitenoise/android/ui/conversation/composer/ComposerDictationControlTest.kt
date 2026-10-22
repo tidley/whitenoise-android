@@ -2,6 +2,8 @@ package dev.ipf.whitenoise.android.ui.conversation.composer
 
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -9,6 +11,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -55,6 +59,34 @@ private typealias DictationListener = ConversationDictationRecognitionListener
 class ComposerDictationControlTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun readAloudToggleSitsBeforeDictationAndKeepsItsStateAcrossDictation() {
+        val autoRead = mutableStateOf(false)
+        val controller = render(autoRead = autoRead)
+        val toggle = composeRule.onNodeWithContentDescription("Read messages aloud")
+        toggle.assertIsDisplayed().assertIsOff()
+        val speakerBounds = toggle.getUnclippedBoundsInRoot()
+        val micBounds = composeRule.onNodeWithContentDescription("Dictate text").getUnclippedBoundsInRoot()
+        assertTrue(speakerBounds.right <= micBounds.left)
+
+        toggle.performClick().assertIsOn()
+        composeRule.onNodeWithContentDescription("Dictate text").performClick()
+        toggle.assertDoesNotExist()
+        composeRule.runOnIdle { controller.cancel() }
+        toggle.assertIsDisplayed().assertIsOn()
+        toggle.performClick().assertIsOff()
+    }
+
+    @Test
+    fun readAloudToggleFitsBesideDictationAtLargeFontInRtl() {
+        render(fontScale = 2f, rtl = true, withAttachments = true, autoRead = mutableStateOf(true))
+        val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
+        val mic = composeRule.onNodeWithContentDescription("Dictate text")
+        speaker.assertIsDisplayed().assertIsOn()
+        mic.assertIsDisplayed()
+        assertTrue(mic.getUnclippedBoundsInRoot().right <= speaker.getUnclippedBoundsInRoot().left)
+    }
 
     /** A real controller tail failure leaves a normal composer, with audio recovery only in its own chat. */
     @Test
@@ -304,6 +336,7 @@ class ComposerDictationControlTest {
         voiceRecordingController: VoiceRecordingController? = null,
         replyingTo: dev.ipf.marmotkit.AppMessageRecordFfi? = null,
         suppliedController: ConversationDictationController? = null,
+        autoRead: MutableState<Boolean>? = null,
     ): ConversationDictationController {
         val dictationController = suppliedController ?: idleDictationController(draft)
         composeRule.setContent {
@@ -323,6 +356,8 @@ class ComposerDictationControlTest {
                         dictationController = dictationController,
                         dictationAccountRef = ACCOUNT,
                         dictationGroupIdHex = GROUP,
+                        autoReadEnabled = autoRead?.value,
+                        onAutoReadToggle = { autoRead?.let { it.value = !it.value } },
                         voiceRecordingController = voiceRecordingController,
                         modifier = Modifier.width(320.dp).testTag(ROOT_TAG),
                     )

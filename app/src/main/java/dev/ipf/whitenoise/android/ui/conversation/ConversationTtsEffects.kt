@@ -16,6 +16,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import dev.ipf.marmotkit.AppMessageRecordFfi
 import dev.ipf.whitenoise.android.audio.tts.TTS_AUTO_READ_MAX_MESSAGES
 import dev.ipf.whitenoise.android.audio.tts.TtsSpeakableEntry
@@ -124,6 +125,14 @@ internal fun ConversationTtsAutoReadEffects(
     entryFirstUnreadMessageId: String?,
     transcriptReadyToReveal: Boolean,
 ) {
+    val autoReadPreferences by appState.ttsAutoReadPreferences.state.collectAsState()
+    val autoReadEnabled =
+        remember(autoReadPreferences, controller.boundAccountRef, controller.group.groupIdHex) {
+            controller.boundAccountRef?.let {
+                appState.conversationAutoReadFor(it, controller.group.groupIdHex)
+            } ?: false
+        }
+    val lifecycleOwner = LocalContext.current.lifecycleOwner()
     suspend fun projectEntry(record: AppMessageRecordFfi) = projectConversationTtsEntry(appState, controller, record)
 
     suspend fun autoReadBacklogEntries(): List<TtsSpeakableEntry> {
@@ -155,7 +164,7 @@ internal fun ConversationTtsAutoReadEffects(
     // Auto-read (#1483): once the authoritative transcript can be revealed,
     // read the unread backlog. The reveal key also restarts a route that was
     // initially withheld for membership verification.
-    LaunchedEffect(controller, chatId, transcriptReadyToReveal) {
+    LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled) {
         if (!transcriptReadyToReveal) return@LaunchedEffect
         if (appState.ownsTtsAutoReadSession(controller.group.groupIdHex)) return@LaunchedEffect
         val entries = autoReadBacklogEntries()
@@ -166,6 +175,46 @@ internal fun ConversationTtsAutoReadEffects(
                 Locale.getDefault(),
                 backgroundPreparation = true,
             )
+        }
+    }
+
+    // An empty/read chat has no backlog to start the process-owned continuation.
+    // Watch only new arrivals until speech starts; the existing native subscriber
+    // owns appending and revocation once that session is active.
+    LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled, lifecycleOwner) {
+        if (!transcriptReadyToReveal || !autoReadEnabled) return@LaunchedEffect
+        val account = controller.boundAccountRef ?: return@LaunchedEffect
+        val lifecycle = lifecycleOwner?.lifecycle ?: return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            var cursor = conversationAutoReadCursor(controller.timeline)
+            var wasAtTail = !controller.hasMoreAfterTimeline
+            snapshotFlow { controller.timeline.toList() to controller.hasMoreAfterTimeline }.collect { (timeline, hasMore) ->
+                val arrivals =
+                    if (wasAtTail && !hasMore) conversationMessagesAfterAutoReadCursor(timeline, cursor) else emptyList()
+                cursor = advanceConversationAutoReadCursor(cursor, timeline)
+                wasAtTail = !hasMore
+                val state = appState.ttsController.state.value
+                if (state is TtsState.Speaking || state is TtsState.Paused || state is TtsState.Preparing) return@collect
+                if (!appState.ttsHasUsableEngine || appState.activeAccountRef != account) return@collect
+                val entries =
+                    arrivals
+                        .filter { it.record.direction == "received" }
+                        .take(TTS_AUTO_READ_MAX_MESSAGES)
+                        .mapNotNull { projectEntry(it.record) }
+                if (entries.isNotEmpty()) {
+                    appState.speakAloudAutoRead(
+                        controller.group.groupIdHex,
+                        entries,
+                        Locale.getDefault(),
+                        backgroundPreparation = true,
+                        canCommit = {
+                            lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) &&
+                                appState.activeAccountRef == account &&
+                                appState.isConversationAutoRead(controller.group.groupIdHex)
+                        },
+                    )
+                }
+            }
         }
     }
 
@@ -180,7 +229,6 @@ internal fun ConversationTtsAutoReadEffects(
         }
     var autoReadResumeGeneration by remember(controller, chatId) { mutableLongStateOf(0L) }
     var handledAutoReadResumeGeneration by remember(controller, chatId) { mutableLongStateOf(0L) }
-    val lifecycleOwner = LocalContext.current.lifecycleOwner()
     DisposableEffect(controller, chatId, lifecycleOwner) {
         if (lifecycleOwner == null) {
             onDispose { }

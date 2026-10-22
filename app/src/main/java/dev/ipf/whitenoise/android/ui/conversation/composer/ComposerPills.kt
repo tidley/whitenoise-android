@@ -342,6 +342,8 @@ internal fun ComposerPill(
     onPickDocument: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onDictation: (() -> Unit)? = null,
+    autoReadEnabled: Boolean? = null,
+    onAutoReadToggle: () -> Unit = {},
     dictationControls: (@Composable RowScope.() -> Unit)? = null,
     // Gate inputs only: the sheet these open lives in ComposerBar, but the
     // attach button must appear whenever ANY attachment action is wired, not
@@ -669,11 +671,13 @@ internal fun ComposerPill(
     val primaryTrailingWidth =
         (if (expandedTrailingActionInset > 0.dp) expandedTrailingActionInset + 4.dp else 0.dp) +
             (if (trailingAction != null) 40.dp else 0.dp)
+    val autoReadControlWidth =
+        if (autoReadEnabled != null && inputContentVisible && dictationControls == null) 48.dp else 0.dp
     val minimumDictationWidth =
         when {
             dictationControls != null -> DICTATION_ACTIVE_ACTIONS_WIDTH
-            onDictation != null -> 40.dp
-            else -> 0.dp
+            onDictation != null -> 40.dp + autoReadControlWidth
+            else -> autoReadControlWidth
         }
     // Automatic geometry may still be animating its outer reservation; budget the smaller surface.
     val navigationSurfaceWidth =
@@ -691,8 +695,8 @@ internal fun ComposerPill(
     val targetDictationControlWidth =
         when {
             dictationControls != null -> minOf(DICTATION_ACTIVE_ACTIONS_WIDTH, availableDictationWidth)
-            onDictation != null -> 40.dp
-            else -> 0.dp
+            onDictation != null -> 40.dp + autoReadControlWidth
+            else -> autoReadControlWidth
         }
     val dictationControlWidthState =
         animateDpAsState(
@@ -1562,6 +1566,9 @@ internal fun ComposerPill(
                                     ).height(48.dp),
                         ) {
                             if (draftTopWidth > 0.dp && !topOnSeparateRow) draftTopAction()
+                            if (autoReadControlWidth > 0.dp) {
+                                ComposerAutoReadToggle(checkNotNull(autoReadEnabled), onAutoReadToggle)
+                            }
                             if (dictationControls != null) {
                                 Row(
                                     Modifier.layout { measurable, constraints ->

@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.onSizeChanged
@@ -22,6 +25,7 @@ import dev.ipf.whitenoise.android.core.ForwardBlockedReason
 import dev.ipf.whitenoise.android.core.MentionComposer
 import dev.ipf.whitenoise.android.core.MessageTextCopy
 import dev.ipf.whitenoise.android.state.ConversationController
+import dev.ipf.whitenoise.android.state.TtsAutoReadOverride
 import dev.ipf.whitenoise.android.state.WhiteNoiseAppState
 import dev.ipf.whitenoise.android.state.mediaReferencesFor
 import dev.ipf.whitenoise.android.ui.chats.ConversationSearchNavBar
@@ -204,6 +208,13 @@ internal fun ConversationBottomBar(
                             },
                         )
                     ComposerGate.COMPOSER -> {
+                        val autoReadPreferences by appState.ttsAutoReadPreferences.state.collectAsState()
+                        val autoReadEnabled =
+                            remember(autoReadPreferences, controller.boundAccountRef, controller.group.groupIdHex) {
+                                controller.boundAccountRef?.let {
+                                    appState.conversationAutoReadFor(it, controller.group.groupIdHex)
+                                } ?: false
+                            }
                         val editingRecord =
                             controller.editingMessageId?.let { id ->
                                 controller.timeline.firstOrNull { it.record.messageIdHex == id }?.record
@@ -263,6 +274,15 @@ internal fun ConversationBottomBar(
                             dictationAccountRef = controller.boundAccountRef,
                             dictationGroupIdHex = controller.group.groupIdHex,
                             dictationControlsVisible = dictationControlsVisible,
+                            autoReadEnabled = autoReadEnabled,
+                            onAutoReadToggle = {
+                                if (appState.activeAccountRef == controller.boundAccountRef) {
+                                    appState.setConversationAutoReadOverride(
+                                        controller.group.groupIdHex,
+                                        if (autoReadEnabled) TtsAutoReadOverride.OFF else TtsAutoReadOverride.ON,
+                                    )
+                                }
+                            },
                             appState = appState,
                             mentionCandidates = mentionCandidates,
                             mentionPickerEnabled = mentionPickerEnabled,
