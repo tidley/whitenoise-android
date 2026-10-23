@@ -83,7 +83,11 @@ class TtsAutoReadScreenIntegrationTest {
             }
         }
         val shortcut = composeRule.onNodeWithTag("speech.composer_shortcut")
-        shortcut.performScrollTo().assertIsOff().performClick().assertIsOn()
+        shortcut
+            .performScrollTo()
+            .assertIsOff()
+            .performClick()
+            .assertIsOn()
         composeRule.runOnIdle {
             assertTrue(TtsAutoReadPreferences(context).state.value.showComposerShortcut)
             assertFalse(appState.isConversationAutoRead(groupId))
