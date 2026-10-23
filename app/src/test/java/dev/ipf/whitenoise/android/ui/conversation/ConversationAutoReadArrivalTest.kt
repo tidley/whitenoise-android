@@ -95,7 +95,8 @@ class ConversationAutoReadArrivalTest {
         }
         composeRule.waitForIdle()
         composeRule.runOnIdle {
-            assertTrue(composeRule.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+            val state = composeRule.activity.lifecycle.currentState
+            assertTrue(state.isAtLeast(Lifecycle.State.RESUMED))
             assertTrue(app.isConversationAutoRead(controller.group.groupIdHex))
             assertTrue(app.ttsHasUsableEngine)
         }

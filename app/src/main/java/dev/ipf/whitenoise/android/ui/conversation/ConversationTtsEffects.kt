@@ -134,6 +134,7 @@ internal fun ConversationTtsAutoReadEffects(
         }
     val lifecycleOwner = LocalContext.current.lifecycleOwner()
     var entryBacklogConsumed by remember(controller, chatId) { mutableStateOf(false) }
+
     suspend fun projectEntry(record: AppMessageRecordFfi) = projectConversationTtsEntry(appState, controller, record)
 
     suspend fun autoReadBacklogEntries(): List<TtsSpeakableEntry> {
