@@ -40,7 +40,7 @@ class TtsAutoReadWiringCoverageTest {
     @Test
     fun conversationTtsEffectsOpenIdleTriggerUsesRevealedBacklogAndAutoReadOwnership() {
         val body = source("ui/conversation/ConversationTtsEffects.kt")
-        val openEffectStart = body.indexOf("LaunchedEffect(controller, chatId, transcriptReadyToReveal)")
+        val openEffectStart = body.indexOf("LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled)")
         val openEffectEnd = body.indexOf("// The process-owned continuation", openEffectStart)
         val openEffect = body.substring(openEffectStart, openEffectEnd)
 

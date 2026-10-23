@@ -13,6 +13,7 @@ import dev.ipf.whitenoise.android.R
 
 /** A compact glyph with a full touch target; checked state is also exposed to TalkBack. */
 @Composable
+@Suppress("FunctionNaming")
 internal fun ComposerAutoReadToggle(
     checked: Boolean,
     onClick: () -> Unit,
