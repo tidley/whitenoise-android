@@ -12,6 +12,8 @@ import dev.ipf.whitenoise.android.audio.tts.TtsEngineInfo
 import dev.ipf.whitenoise.android.audio.tts.TtsResolutionResult
 import dev.ipf.whitenoise.android.core.EMPTY_MARKDOWN_DOCUMENT
 import dev.ipf.whitenoise.android.state.ConversationController
+import dev.ipf.whitenoise.android.state.DraftPersistence
+import dev.ipf.whitenoise.android.state.DraftStore
 import dev.ipf.whitenoise.android.state.MessageStatus
 import dev.ipf.whitenoise.android.state.TimelineMessage
 import dev.ipf.whitenoise.android.state.TtsAutoReadOverride
@@ -49,6 +51,7 @@ class ConversationAutoReadArrivalTest {
         app =
             WhiteNoiseAppState(
                 context = context,
+                draftStore = DraftStore(NoOpDraftPersistence),
                 accountIdHexResolver = { null },
                 accounts = listOf(AccountSummaryFfi("account", "aa", true, false, false, true)),
                 activeAccountRef = "account",
@@ -91,7 +94,7 @@ class ConversationAutoReadArrivalTest {
             app.setConversationAutoReadOverride(controller.group.groupIdHex, TtsAutoReadOverride.ON)
         }
         composeRule.waitForIdle()
-        composeRule.runOnIdle { controller.timeline = listOf(incoming("first", 1uL)) }
+        composeRule.runOnIdle { publishIncoming("first") }
         composeRule.waitUntil(10_000) { engine.spoken.any { "Reply first" in it.text } }
     }
 
@@ -102,7 +105,7 @@ class ConversationAutoReadArrivalTest {
         }
         composeRule.waitForIdle()
         composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
-        composeRule.runOnIdle { controller.timeline = listOf(incoming("private", 1uL)) }
+        composeRule.runOnIdle { publishIncoming("private") }
         composeRule.waitForIdle()
         assertTrue(engine.spoken.isEmpty())
     }
@@ -117,9 +120,27 @@ class ConversationAutoReadArrivalTest {
             app.setConversationAutoReadOverride(controller.group.groupIdHex, TtsAutoReadOverride.OFF)
         }
         composeRule.waitForIdle()
-        composeRule.runOnIdle { controller.timeline = listOf(incoming("silent", 1uL)) }
+        composeRule.runOnIdle { publishIncoming("silent") }
         composeRule.waitForIdle()
         assertTrue(engine.spoken.isEmpty())
+    }
+
+    // Feed the isolated screen without starting native subscriptions or widening production setters.
+    private fun publishIncoming(id: String) {
+        val field = ConversationController::class.java.getDeclaredField("timeline\$delegate")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val timeline = field.get(controller) as androidx.compose.runtime.MutableState<List<TimelineMessage>>
+        timeline.value = listOf(incoming(id, 1uL))
+    }
+
+    private object NoOpDraftPersistence : DraftPersistence {
+        override fun read(): Map<String, String> = emptyMap()
+
+        override fun write(
+            key: String,
+            value: String?,
+        ) = Unit
     }
 
     private fun incoming(
