@@ -274,7 +274,7 @@ internal fun ConversationBottomBar(
                             dictationAccountRef = controller.boundAccountRef,
                             dictationGroupIdHex = controller.group.groupIdHex,
                             dictationControlsVisible = dictationControlsVisible,
-                            autoReadEnabled = autoReadEnabled,
+                            autoReadEnabled = autoReadEnabled.takeIf { autoReadPreferences.showComposerShortcut },
                             onAutoReadToggle = {
                                 if (appState.activeAccountRef == controller.boundAccountRef) {
                                     appState.setConversationAutoReadOverride(

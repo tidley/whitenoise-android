@@ -106,6 +106,21 @@ class ConversationComposerFullScreenRetentionScreenshotTest {
         )
     }
 
+    @Test
+    fun speakerShortcutFollowsOptInWithoutChangingSpeechPolicy() {
+        val appState = createAppState("")
+        val chat = createConversation(appState)
+        val speaker = composeRule.onNodeWithContentDescription(context.getString(R.string.tts_auto_read_title))
+        mountConversation(appState, chat)
+        speaker.assertDoesNotExist()
+
+        composeRule.runOnIdle { appState.setTtsComposerShortcutVisible(true) }
+        speaker.assertIsDisplayed()
+        composeRule.runOnIdle { appState.setTtsComposerShortcutVisible(false) }
+        speaker.assertDoesNotExist()
+        composeRule.runOnIdle { assertEquals(false, appState.isConversationAutoRead(GROUP_A)) }
+    }
+
     /** Mounts the real route with framework density retained and large-text RTL presentation. */
     private fun mountConversation(
         appState: WhiteNoiseAppState,

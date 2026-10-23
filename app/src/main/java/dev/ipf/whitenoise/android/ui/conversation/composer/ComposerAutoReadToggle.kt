@@ -2,6 +2,7 @@ package dev.ipf.whitenoise.android.ui.conversation.composer
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -22,11 +23,16 @@ internal fun ComposerAutoReadToggle(
         checked = checked,
         onCheckedChange = { onClick() },
         modifier = Modifier.size(48.dp),
+        colors =
+            IconButtonDefaults.iconToggleButtonColors(
+                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ),
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_volume_up),
+            painter = painterResource(if (checked) R.drawable.ic_volume_up else R.drawable.ic_volume_off),
             contentDescription = stringResource(R.string.tts_auto_read_title),
-            tint = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(20.dp),
         )
     }

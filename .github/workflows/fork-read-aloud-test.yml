@@ -41,7 +41,11 @@ jobs:
           for flavor in Zapstore Play; do
             ./gradlew ":app:testDev${flavor}DebugUnitTest" \
               --tests '*ComposerDictationControlTest' \
+              --tests '*ConversationComposerFullScreenRetentionScreenshotTest.speakerShortcutFollowsOptInWithoutChangingSpeechPolicy' \
               --tests '*WhiteNoiseAppStateTtsAutoReadTest' \
+              --tests '*TtsAutoReadPreferencesTest' \
+              --tests '*TtsAutoReadScreenIntegrationTest' \
+              --tests '*TtsVoiceMediaSettingsScreenshotTest' \
               --tests '*ConversationAutoReadResumeTest' \
               --tests '*ConversationAutoReadArrivalTest' \
               --tests '*TtsAutoReadWiringCoverageTest' \

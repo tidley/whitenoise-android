@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import dev.ipf.marmotkit.AccountSummaryFfi
 import dev.ipf.whitenoise.android.R
@@ -71,6 +72,23 @@ class TtsAutoReadScreenIntegrationTest {
             assertTrue(appState.ttsAutoReadPreferences.state.value.globalDefaultEnabled)
         }
         composeRule.onNodeWithTag(TTS_AUTO_READ_GLOBAL_DEFAULT_ROW_TAG).assertIsOn()
+    }
+
+    @Test
+    fun composerShortcutIsAnIndependentOptInSetting() {
+        val appState = appState(activeAccountRef = accountA)
+        composeRule.setContent {
+            WhiteNoiseTheme {
+                TextToSpeechScreen(appState = appState, onBack = {})
+            }
+        }
+        val shortcut = composeRule.onNodeWithTag("speech.composer_shortcut")
+        shortcut.performScrollTo().assertIsOff().performClick().assertIsOn()
+        composeRule.runOnIdle {
+            assertTrue(TtsAutoReadPreferences(context).state.value.showComposerShortcut)
+            assertFalse(appState.isConversationAutoRead(groupId))
+        }
+        shortcut.performClick().assertIsOff()
     }
 
     @Test

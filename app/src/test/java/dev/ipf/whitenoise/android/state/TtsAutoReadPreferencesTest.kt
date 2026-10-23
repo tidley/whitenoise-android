@@ -37,8 +37,24 @@ class TtsAutoReadPreferencesTest {
         val prefs = TtsAutoReadPreferences(context)
 
         assertFalse(prefs.state.value.globalDefaultEnabled)
+        assertFalse(prefs.state.value.showComposerShortcut)
         assertEquals(emptyMap<String, TtsAutoReadOverride>(), prefs.state.value.overrides)
         assertFalse(prefs.isConversationAutoRead("account-a", "group-a"))
+    }
+
+    @Test
+    fun composerShortcutVisibilityPersistsWithoutChangingSpeechPolicy() {
+        val prefs = TtsAutoReadPreferences(context)
+        prefs.setConversationOverride("account-a", "group-a", TtsAutoReadOverride.ON)
+        prefs.setComposerShortcutVisible(true)
+        assertTrue(prefs.state.value.showComposerShortcut)
+        assertTrue(TtsAutoReadPreferences(context).state.value.showComposerShortcut)
+
+        prefs.setComposerShortcutVisible(false)
+        val reloaded = TtsAutoReadPreferences(context)
+        assertFalse(reloaded.state.value.showComposerShortcut)
+        assertTrue(reloaded.isConversationAutoRead("account-a", "group-a"))
+        assertFalse(reloaded.state.value.globalDefaultEnabled)
     }
 
     @Test

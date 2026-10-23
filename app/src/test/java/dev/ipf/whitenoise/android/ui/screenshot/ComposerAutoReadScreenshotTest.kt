@@ -36,6 +36,12 @@ class ComposerAutoReadScreenshotTest {
     fun offLight() = capture("composer_auto_read_off_light", checked = false)
 
     @Test
+    fun offDark() = capture("composer_auto_read_off_dark", checked = false, dark = true)
+
+    @Test
+    fun onLight() = capture("composer_auto_read_on_light", checked = true)
+
+    @Test
     fun onDark() = capture("composer_auto_read_on_dark", checked = true, dark = true)
 
     @Test

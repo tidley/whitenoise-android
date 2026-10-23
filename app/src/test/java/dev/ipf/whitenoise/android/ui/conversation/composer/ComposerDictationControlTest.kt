@@ -61,6 +61,13 @@ class ComposerDictationControlTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun unconfiguredShortcutIsHidden() {
+        render()
+        composeRule.onNodeWithContentDescription("Read messages aloud").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
+    }
+
+    @Test
     fun readAloudToggleSitsBeforeDictationAndKeepsItsStateAcrossDictation() {
         val autoRead = mutableStateOf(false)
         val controller = render(autoRead = autoRead)

@@ -46,6 +46,15 @@ class TtsAutoReadPreferences(
         }
     }
 
+    fun setComposerShortcutVisible(visible: Boolean) {
+        synchronized(mutationLock) {
+            val current = _state.value
+            if (current.showComposerShortcut == visible) return
+            publishLocked(current.copy(showComposerShortcut = visible))
+            preferences.edit().putBoolean(KEY_COMPOSER_SHORTCUT, visible).apply()
+        }
+    }
+
     fun setConversationOverride(
         accountRef: String,
         groupIdHex: String,
@@ -82,7 +91,11 @@ class TtsAutoReadPreferences(
             migrateLegacyBinaryLockedIfNeeded()
             val globalDefault = preferences.getBoolean(KEY_GLOBAL_DEFAULT, false)
             val overrides = readOverridesLocked()
-            return TtsAutoReadPreferenceState(globalDefaultEnabled = globalDefault, overrides = overrides)
+            return TtsAutoReadPreferenceState(
+                globalDefaultEnabled = globalDefault,
+                overrides = overrides,
+                showComposerShortcut = preferences.getBoolean(KEY_COMPOSER_SHORTCUT, false),
+            )
         }
     }
 
@@ -157,6 +170,7 @@ class TtsAutoReadPreferences(
         internal const val PREFERENCES_NAME = "whitenoise.tts_auto_read"
         internal const val KEY_LEGACY_ENABLED = "autoReadConversations"
         private const val KEY_GLOBAL_DEFAULT = "globalDefaultEnabled"
+        private const val KEY_COMPOSER_SHORTCUT = "showComposerShortcut"
         private const val KEY_OVERRIDE_ON = "overrideOnConversations"
         private const val KEY_OVERRIDE_OFF = "overrideOffConversations"
         private const val KEY_LEGACY_MIGRATED = "legacyBinaryMigrated"
