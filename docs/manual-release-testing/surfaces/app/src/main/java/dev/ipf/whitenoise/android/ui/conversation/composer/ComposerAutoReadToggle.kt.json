@@ -6,7 +6,7 @@
       {
         "surface": "ComposerAutoReadToggle",
         "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/composer/ComposerAutoReadToggle.kt",
-        "anchor": "fun ComposerAutoReadToggle(",
+        "anchor": "checkedContainerColor = Color.Transparent",
         "test_ids": ["TTS-006"]
       }
     ]

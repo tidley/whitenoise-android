@@ -7,6 +7,7 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -25,8 +26,8 @@ internal fun ComposerAutoReadToggle(
         modifier = Modifier.size(48.dp),
         colors =
             IconButtonDefaults.iconToggleButtonColors(
-                checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                checkedContainerColor = Color.Transparent,
+                checkedContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             ),
     ) {
