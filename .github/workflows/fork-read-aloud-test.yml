@@ -54,8 +54,18 @@ jobs:
             -Pandroid.injected.build.abi=arm64-v8a \
             -Pandroid.injected.testOnly=false --no-daemon --stacktrace
           mkdir -p test-apk
-          find app/build/outputs/apk -name '*.apk' -exec cp '{}' test-apk/ \;
+          # AGP's device-targeted assembly writes to intermediates/apk.
+          for root in app/build/outputs/apk app/build/intermediates/apk; do
+            if [[ -d "$root" ]]; then
+              find "$root" -type f -name '*.apk' -exec cp '{}' test-apk/ \;
+            fi
+          done
           test -n "$(find test-apk -name '*.apk' -print -quit)"
+          for apk in test-apk/*.apk; do
+            badging=$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$apk")
+            grep -q "^package: name='dev[.]ipf[.]whitenoise[.]android[.]dev' " <<< "$badging"
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify "$apk"
+          done
           printf '%s\n' "$GITHUB_SHA" > test-apk/SOURCE_COMMIT
           (cd test-apk && sha256sum *.apk > SHA256SUMS)
       - name: Retain isolated candidate
