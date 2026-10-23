@@ -94,8 +94,16 @@ class ConversationAutoReadArrivalTest {
             app.setConversationAutoReadOverride(controller.group.groupIdHex, TtsAutoReadOverride.ON)
         }
         composeRule.waitForIdle()
+        composeRule.runOnIdle {
+            assertTrue(composeRule.activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+            assertTrue(app.isConversationAutoRead(controller.group.groupIdHex))
+            assertTrue(app.ttsHasUsableEngine)
+        }
         composeRule.runOnIdle { publishIncoming("first") }
-        composeRule.waitUntil(10_000) { engine.spoken.any { "Reply first" in it.text } }
+        composeRule.waitUntil(10_000) {
+            composeRule.waitForIdle()
+            engine.spoken.any { "Reply first" in it.text }
+        }
     }
 
     @Test
