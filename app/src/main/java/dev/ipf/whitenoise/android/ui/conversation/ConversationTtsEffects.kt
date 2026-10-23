@@ -195,13 +195,20 @@ internal fun ConversationTtsAutoReadEffects(
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             var cursor = conversationAutoReadCursor(controller.timeline)
             var wasAtTail = !controller.hasMoreAfterTimeline
-            snapshotFlow { controller.timeline.toList() to controller.hasMoreAfterTimeline }.collect { (timeline, hasMore) ->
+            val timelineFlow = snapshotFlow { controller.timeline.toList() to controller.hasMoreAfterTimeline }
+            timelineFlow.collect { (timeline, hasMore) ->
                 val arrivals =
-                    if (wasAtTail && !hasMore) conversationMessagesAfterAutoReadCursor(timeline, cursor) else emptyList()
+                    if (wasAtTail && !hasMore) {
+                        conversationMessagesAfterAutoReadCursor(timeline, cursor)
+                    } else {
+                        emptyList()
+                    }
                 cursor = advanceConversationAutoReadCursor(cursor, timeline)
                 wasAtTail = !hasMore
                 val state = appState.ttsController.state.value
-                if (state is TtsState.Speaking || state is TtsState.Paused || state is TtsState.Preparing) return@collect
+                if (state is TtsState.Speaking || state is TtsState.Paused || state is TtsState.Preparing) {
+                    return@collect
+                }
                 if (!appState.ttsHasUsableEngine || appState.activeAccountRef != account) return@collect
                 val entries =
                     arrivals
@@ -211,7 +218,9 @@ internal fun ConversationTtsAutoReadEffects(
                 if (entries.isNotEmpty()) {
                     // Projection can suspend; do not replace manual speech started meanwhile.
                     val current = appState.ttsController.state.value
-                    if (current is TtsState.Speaking || current is TtsState.Paused || current is TtsState.Preparing) return@collect
+                    if (current is TtsState.Speaking || current is TtsState.Paused || current is TtsState.Preparing) {
+                        return@collect
+                    }
                     appState.speakAloudAutoRead(
                         controller.group.groupIdHex,
                         entries,

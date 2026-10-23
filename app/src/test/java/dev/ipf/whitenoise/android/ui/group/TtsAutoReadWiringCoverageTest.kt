@@ -40,7 +40,8 @@ class TtsAutoReadWiringCoverageTest {
     @Test
     fun conversationTtsEffectsOpenIdleTriggerUsesRevealedBacklogAndAutoReadOwnership() {
         val body = source("ui/conversation/ConversationTtsEffects.kt")
-        val openEffectStart = body.indexOf("LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled)")
+        val openEffectStart =
+            body.indexOf("LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled)")
         val openEffectEnd = body.indexOf("// The process-owned continuation", openEffectStart)
         val openEffect = body.substring(openEffectStart, openEffectEnd)
 
@@ -140,9 +141,18 @@ class TtsAutoReadWiringCoverageTest {
             "reveal must not replace an already owned background queue",
             "if (appState.ownsTtsAutoReadSession(controller.group.groupIdHex)) {" in effects,
         )
-        assertTrue("toggling must not replay the entry backlog", "if (entryBacklogConsumed) return@LaunchedEffect" in effects)
-        assertTrue("new speech starts only in a resumed screen", "repeatOnLifecycle(Lifecycle.State.RESUMED)" in effects)
-        assertTrue("late preparation rechecks the foreground owner", "lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)" in effects)
+        assertTrue(
+            "toggling must not replay the entry backlog",
+            "if (entryBacklogConsumed) return@LaunchedEffect" in effects,
+        )
+        assertTrue(
+            "new speech starts only in a resumed screen",
+            "repeatOnLifecycle(Lifecycle.State.RESUMED)" in effects,
+        )
+        assertTrue(
+            "late preparation rechecks the foreground owner",
+            "lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)" in effects,
+        )
     }
 
     @Test

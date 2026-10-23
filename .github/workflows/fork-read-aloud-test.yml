@@ -34,6 +34,8 @@ jobs:
         run: |
           python3 scripts/check_manual_test_guide.py
           python3 -m unittest scripts/test_check_manual_test_guide.py scripts/test_manual_test_fragments.py
+      - name: Check Kotlin style
+        run: ./gradlew :app:ktlintCheck :app:detekt --continue --no-daemon --stacktrace
       - name: Exercise composer and speech regressions in both distributions
         run: |
           for flavor in Zapstore Play; do
@@ -48,7 +50,6 @@ jobs:
           done
       - name: Build isolated dev APK
         run: |
-          ./gradlew :app:ktlintCheck :app:detekt --no-daemon --stacktrace
           ./gradlew :app:assembleDevPlayDebug \
             -Pandroid.injected.build.abi=arm64-v8a \
             -Pandroid.injected.testOnly=false --no-daemon --stacktrace
@@ -71,4 +72,6 @@ jobs:
           path: |
             app/build/reports/tests/
             app/build/test-results/
+            app/build/reports/detekt/
+            app/build/reports/ktlint/
             app/src/test/snapshots/composer_auto_read_*.png
