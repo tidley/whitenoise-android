@@ -2,6 +2,7 @@ package dev.ipf.whitenoise.android.ui.conversation
 
 import android.content.Context
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -46,6 +47,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+
+private typealias RecognitionListener = ConversationDictationRecognitionListener
 
 /** Exercises one real ComposerBar across the activity and full-screen reader windows. */
 @RunWith(RobolectricTestRunner::class)
@@ -184,35 +187,7 @@ class ReaderComposerHostTest {
                 ) {
                     Text("Conversation")
                     if (readerOpen) {
-                        val host = checkNotNull(LocalReaderComposerHost.current)
-                        MessageFullScreenView(
-                            senderDisplayName = "Test sender",
-                            senderSeed = "test",
-                            senderAvatarUrl = null,
-                            body = "Long message. ".repeat(100),
-                            bodyMarkdownDocument = null,
-                            mentionDisplayName = null,
-                            onNostrProfileTap = null,
-                            onCopyMarkdownLink = {},
-                            timeText = "12:00",
-                            showStatus = false,
-                            status = MessageStatus.Sent,
-                            canReply = true,
-                            canReact = false,
-                            canDelete = false,
-                            onReply = {},
-                            onReact = {},
-                            onCopy = {},
-                            onDelete = {},
-                            onDismiss = { readerOpen = false },
-                            bottomBar = {
-                                SharedReaderComposer(
-                                    host = host,
-                                    onAfterSend = { readerOpen = false },
-                                    onDismiss = { readerOpen = false },
-                                )
-                            },
-                        )
+                        ExpandedReader()
                     }
                 }
             }
@@ -220,14 +195,45 @@ class ReaderComposerHostTest {
         return dictation
     }
 
+    @Composable
+    private fun ExpandedReader() {
+        val host = checkNotNull(LocalReaderComposerHost.current)
+        MessageFullScreenView(
+            senderDisplayName = "Test sender",
+            senderSeed = "test",
+            senderAvatarUrl = null,
+            body = "Long message. ".repeat(100),
+            bodyMarkdownDocument = null,
+            mentionDisplayName = null,
+            onNostrProfileTap = null,
+            onCopyMarkdownLink = {},
+            timeText = "12:00",
+            showStatus = false,
+            status = MessageStatus.Sent,
+            canReply = true,
+            canReact = false,
+            canDelete = false,
+            onReply = {},
+            onReact = {},
+            onCopy = {},
+            onDelete = {},
+            onDismiss = { readerOpen = false },
+            bottomBar = {
+                SharedReaderComposer(
+                    host = host,
+                    onAfterSend = { readerOpen = false },
+                    onDismiss = { readerOpen = false },
+                )
+            },
+        )
+    }
+
     private object TestDictationPlatform : ConversationDictationPlatform {
         override fun hasRecordAudioPermission() = true
 
         override fun recognitionAvailable() = true
 
-        override fun createSession(
-            listener: ConversationDictationRecognitionListener,
-        ): ConversationDictationRecognitionSession =
+        override fun createSession(listener: RecognitionListener): ConversationDictationRecognitionSession =
             object : ConversationDictationRecognitionSession {
                 override fun start() = Unit
 
