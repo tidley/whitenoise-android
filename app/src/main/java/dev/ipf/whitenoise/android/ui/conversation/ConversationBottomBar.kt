@@ -218,7 +218,10 @@ internal fun ConversationBottomBar(
                         val showAutoReadShortcut =
                             remember(autoReadPreferences, controller.boundAccountRef, controller.group.groupIdHex) {
                                 controller.boundAccountRef?.let {
-                                    appState.ttsAutoReadPreferences.isComposerShortcutVisibleFor(it, controller.group.groupIdHex)
+                                    appState.ttsAutoReadPreferences.isComposerShortcutVisibleFor(
+                                        it,
+                                        controller.group.groupIdHex,
+                                    )
                                 } ?: false
                             }
                         val editingRecord =

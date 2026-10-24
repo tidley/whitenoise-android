@@ -120,7 +120,11 @@ class ConversationComposerFullScreenRetentionScreenshotTest {
         speaker.assertDoesNotExist()
 
         composeRule.runOnIdle { appState.setConversationAutoReadOverride(GROUP_A, TtsAutoReadOverride.ON) }
-        speaker.assertIsDisplayed().assertIsOn().performClick().assertIsOff()
+        speaker
+            .assertIsDisplayed()
+            .assertIsOn()
+            .performClick()
+            .assertIsOff()
         composeRule.runOnIdle {
             val reloaded = TtsAutoReadPreferences(context)
             assertTrue(reloaded.isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_A))

@@ -75,7 +75,11 @@ class TtsAutoReadPreferences(
             if (current.overrides[key] == override) return
             val overrides = current.overrides.toMutableMap().apply { put(key, override) }
             val shortcuts =
-                if (override == TtsAutoReadOverride.ON) current.composerShortcutConversations + key else current.composerShortcutConversations
+                if (override == TtsAutoReadOverride.ON) {
+                    current.composerShortcutConversations + key
+                } else {
+                    current.composerShortcutConversations
+                }
             publishLocked(current.copy(overrides = overrides, composerShortcutConversations = shortcuts))
             persistOverridesLocked(overrides)
         }
