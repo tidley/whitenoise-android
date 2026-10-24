@@ -92,9 +92,14 @@ class TtsAutoReadPreferences(
         val key = compositeKeyOrNull(accountRef, groupIdHex) ?: return
         synchronized(mutationLock) {
             val current = _state.value
-            if (!current.overrides.containsKey(key)) return
+            if (!current.overrides.containsKey(key) && key !in current.composerShortcutConversations) return
             val overrides = current.overrides - key
-            publishLocked(current.copy(overrides = overrides))
+            publishLocked(
+                current.copy(
+                    overrides = overrides,
+                    composerShortcutConversations = current.composerShortcutConversations - key,
+                ),
+            )
             persistOverridesLocked(overrides)
         }
     }

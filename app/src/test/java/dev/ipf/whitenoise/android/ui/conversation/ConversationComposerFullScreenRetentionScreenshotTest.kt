@@ -142,6 +142,12 @@ class ConversationComposerFullScreenRetentionScreenshotTest {
         composeRule.onNodeWithTag(CHAT_LIST_TAG).assertIsDisplayed()
         composeRule.runOnUiThread { conversationVisible = true }
         speaker.assertIsDisplayed().assertIsOn()
+        composeRule.runOnIdle { appState.setConversationAutoReadOverride(GROUP_A, null) }
+        speaker.assertDoesNotExist()
+        composeRule.runOnIdle {
+            assertEquals(false, TtsAutoReadPreferences(context).isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_A))
+            assertEquals(false, appState.isConversationAutoRead(GROUP_A))
+        }
     }
 
     @Test
