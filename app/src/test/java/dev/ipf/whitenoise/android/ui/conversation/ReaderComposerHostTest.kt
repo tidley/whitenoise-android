@@ -76,9 +76,10 @@ class ReaderComposerHostTest {
         val restingSlot = composeRule.onNodeWithTag(CONVERSATION_COMPOSER_SLOT_TAG).getUnclippedBoundsInRoot()
         composeRule.runOnIdle { readerOpen = true }
         assertControls()
+        val readerSlot = composeRule.onNodeWithTag(CONVERSATION_COMPOSER_SLOT_TAG).getUnclippedBoundsInRoot()
         assertEquals(
-            restingSlot.height,
-            composeRule.onNodeWithTag(CONVERSATION_COMPOSER_SLOT_TAG).getUnclippedBoundsInRoot().height,
+            restingSlot.bottom - restingSlot.top,
+            readerSlot.bottom - readerSlot.top,
         )
         composeRule.onNodeWithContentDescription("Add attachment").performClick()
         composeRule.onNodeWithText(context.getString(R.string.attachment_photos_videos)).performClick()
