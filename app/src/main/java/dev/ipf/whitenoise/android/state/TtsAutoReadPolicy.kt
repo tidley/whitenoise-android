@@ -9,6 +9,7 @@ data class TtsAutoReadPreferenceState(
     val globalDefaultEnabled: Boolean = false,
     val overrides: Map<String, TtsAutoReadOverride> = emptyMap(),
     val showComposerShortcut: Boolean = false,
+    val composerShortcutConversations: Set<String> = emptySet(),
 )
 
 /** Effective auto-read: per-chat override when set, otherwise the global default. */

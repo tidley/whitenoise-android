@@ -4,9 +4,9 @@
   "categories": {
     "source_coverage": [
       {
-        "surface": "Testing-only MarmotKit nightly 20261023 from d274dd22: verified archive and API; hosted populated October22 upgrade through migration0116 and separate SQLCipher raw-key rekey, normal UI and cold restart, unchanged Forever default, explicit removal, original salts, retained history/media/avatars and pending upload; native interruption evidence separate; no phone testing or downgrade and30-day artifact retention",
+        "surface": "Published MarmotKit 0.14.0 from 3fb4b475 matching the current-master runtime: require exact-candidate populated upgrade and cold restart with retained accounts and history before test APK handoff; do not downgrade or clear storage",
         "source": "app/src/main/marmotkit/MARMOT_VERSION",
-        "anchor": "artifact-id=0.14.0-nightly.20261023",
+        "anchor": "artifact-id=0.14.0",
         "test_ids": [
           "INT-010",
           "INT-003",

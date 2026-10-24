@@ -15,6 +15,8 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties.EditableText
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -22,6 +24,7 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -39,6 +42,8 @@ import dev.ipf.whitenoise.android.state.DraftStore
 import dev.ipf.whitenoise.android.state.GroupMemberSnapshot
 import dev.ipf.whitenoise.android.state.RetainedComposerExpansion
 import dev.ipf.whitenoise.android.state.RetainedComposerExpansionMode
+import dev.ipf.whitenoise.android.state.TtsAutoReadOverride
+import dev.ipf.whitenoise.android.state.TtsAutoReadPreferences
 import dev.ipf.whitenoise.android.state.WhiteNoiseAppState
 import dev.ipf.whitenoise.android.state.conversationTimelineTestGroup
 import dev.ipf.whitenoise.android.ui.conversation.composer.COMPOSER_PILL_SURFACE_TAG
@@ -104,6 +109,35 @@ class ConversationComposerFullScreenRetentionScreenshotTest {
         composeRule.onRoot().captureRoboImage(
             "src/test/snapshots/conversation_composer_full_screen_retained_reentry_amoled_rtl_xhdpi.png",
         )
+    }
+
+    @Test
+    fun conversationSettingRevealsSpeakerAndSpeakerKeepsTogglingOnlyThisChat() {
+        val appState = createAppState("")
+        val chat = createConversation(appState)
+        val speaker = composeRule.onNodeWithContentDescription(context.getString(R.string.tts_auto_read_title))
+        mountConversation(appState, chat)
+        speaker.assertDoesNotExist()
+
+        composeRule.runOnIdle { appState.setConversationAutoReadOverride(GROUP_A, TtsAutoReadOverride.ON) }
+        speaker.assertIsDisplayed().assertIsOn().performClick().assertIsOff()
+        composeRule.runOnIdle {
+            val reloaded = TtsAutoReadPreferences(context)
+            assertTrue(reloaded.isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_A))
+            assertEquals(false, reloaded.isConversationAutoRead(ACCOUNT_A, GROUP_A))
+            assertEquals(false, reloaded.isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_B))
+            assertEquals(false, reloaded.isComposerShortcutVisibleFor(ACCOUNT_B, GROUP_A))
+        }
+        speaker.performClick().assertIsOn()
+        composeRule.runOnIdle {
+            assertEquals(TtsAutoReadOverride.ON, appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_A, GROUP_A))
+            assertNull(appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_A, GROUP_B))
+            assertNull(appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_B, GROUP_A))
+        }
+        composeRule.runOnUiThread { conversationVisible = false }
+        composeRule.onNodeWithTag(CHAT_LIST_TAG).assertIsDisplayed()
+        composeRule.runOnUiThread { conversationVisible = true }
+        speaker.assertIsDisplayed().assertIsOn()
     }
 
     @Test

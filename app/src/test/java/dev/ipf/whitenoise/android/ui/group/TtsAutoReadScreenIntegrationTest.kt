@@ -121,6 +121,8 @@ class TtsAutoReadScreenIntegrationTest {
                 appState.ttsAutoReadPreferences.overrideFor(accountA, groupId),
             )
             assertNull(appState.ttsAutoReadPreferences.overrideFor(accountB, groupId))
+            assertTrue(appState.ttsAutoReadPreferences.isComposerShortcutVisibleFor(accountA, groupId))
+            assertFalse(appState.ttsAutoReadPreferences.isComposerShortcutVisibleFor(accountB, groupId))
         }
 
         composeRule.runOnIdle { runBlocking { appState.setActiveAccount(accountB) } }
@@ -140,6 +142,8 @@ class TtsAutoReadScreenIntegrationTest {
                 TtsAutoReadOverride.ON,
                 appState.ttsAutoReadPreferences.overrideFor(accountA, groupId),
             )
+            assertTrue(TtsAutoReadPreferences(context).isComposerShortcutVisibleFor(accountA, groupId))
+            assertFalse(TtsAutoReadPreferences(context).isComposerShortcutVisibleFor(accountB, groupId))
         }
     }
 

@@ -37,6 +37,15 @@ class TtsAutoReadPreferences(
         return _state.value.overrides[key]
     }
 
+    fun isComposerShortcutVisibleFor(
+        accountRef: String,
+        groupIdHex: String,
+    ): Boolean {
+        val key = compositeKeyOrNull(accountRef, groupIdHex) ?: return false
+        val snapshot = _state.value
+        return snapshot.showComposerShortcut || key in snapshot.composerShortcutConversations
+    }
+
     fun setGlobalDefaultEnabled(enabled: Boolean) {
         synchronized(mutationLock) {
             val current = _state.value
@@ -65,7 +74,9 @@ class TtsAutoReadPreferences(
             val current = _state.value
             if (current.overrides[key] == override) return
             val overrides = current.overrides.toMutableMap().apply { put(key, override) }
-            publishLocked(current.copy(overrides = overrides))
+            val shortcuts =
+                if (override == TtsAutoReadOverride.ON) current.composerShortcutConversations + key else current.composerShortcutConversations
+            publishLocked(current.copy(overrides = overrides, composerShortcutConversations = shortcuts))
             persistOverridesLocked(overrides)
         }
     }
@@ -91,10 +102,22 @@ class TtsAutoReadPreferences(
             migrateLegacyBinaryLockedIfNeeded()
             val globalDefault = preferences.getBoolean(KEY_GLOBAL_DEFAULT, false)
             val overrides = readOverridesLocked()
+            val storedShortcuts =
+                preferences
+                    .getStringSet(KEY_CONVERSATION_SHORTCUTS, emptySet())
+                    .orEmpty()
+                    .mapNotNull(::normalizeStoredKeyOrNull)
+                    .toSet()
+            // Existing ON overrides (including legacy settings) also opt this chat into the shortcut.
+            val shortcuts = storedShortcuts + overrides.filterValues { it == TtsAutoReadOverride.ON }.keys
+            if (shortcuts != storedShortcuts) {
+                preferences.edit().putStringSet(KEY_CONVERSATION_SHORTCUTS, shortcuts).apply()
+            }
             return TtsAutoReadPreferenceState(
                 globalDefaultEnabled = globalDefault,
                 overrides = overrides,
                 showComposerShortcut = preferences.getBoolean(KEY_COMPOSER_SHORTCUT, false),
+                composerShortcutConversations = shortcuts,
             )
         }
     }
@@ -154,6 +177,7 @@ class TtsAutoReadPreferences(
             .edit()
             .putStringSet(KEY_OVERRIDE_ON, onKeys)
             .putStringSet(KEY_OVERRIDE_OFF, offKeys)
+            .putStringSet(KEY_CONVERSATION_SHORTCUTS, _state.value.composerShortcutConversations)
             .apply()
     }
 
@@ -171,6 +195,7 @@ class TtsAutoReadPreferences(
         internal const val KEY_LEGACY_ENABLED = "autoReadConversations"
         private const val KEY_GLOBAL_DEFAULT = "globalDefaultEnabled"
         private const val KEY_COMPOSER_SHORTCUT = "showComposerShortcut"
+        private const val KEY_CONVERSATION_SHORTCUTS = "composerShortcutConversations"
         private const val KEY_OVERRIDE_ON = "overrideOnConversations"
         private const val KEY_OVERRIDE_OFF = "overrideOffConversations"
         private const val KEY_LEGACY_MIGRATED = "legacyBinaryMigrated"

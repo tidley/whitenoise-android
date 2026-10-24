@@ -215,6 +215,12 @@ internal fun ConversationBottomBar(
                                     appState.conversationAutoReadFor(it, controller.group.groupIdHex)
                                 } ?: false
                             }
+                        val showAutoReadShortcut =
+                            remember(autoReadPreferences, controller.boundAccountRef, controller.group.groupIdHex) {
+                                controller.boundAccountRef?.let {
+                                    appState.ttsAutoReadPreferences.isComposerShortcutVisibleFor(it, controller.group.groupIdHex)
+                                } ?: false
+                            }
                         val editingRecord =
                             controller.editingMessageId?.let { id ->
                                 controller.timeline.firstOrNull { it.record.messageIdHex == id }?.record
@@ -274,7 +280,7 @@ internal fun ConversationBottomBar(
                             dictationAccountRef = controller.boundAccountRef,
                             dictationGroupIdHex = controller.group.groupIdHex,
                             dictationControlsVisible = dictationControlsVisible,
-                            autoReadEnabled = autoReadEnabled.takeIf { autoReadPreferences.showComposerShortcut },
+                            autoReadEnabled = autoReadEnabled.takeIf { showAutoReadShortcut },
                             onAutoReadToggle = {
                                 if (appState.activeAccountRef == controller.boundAccountRef) {
                                     appState.setConversationAutoReadOverride(
