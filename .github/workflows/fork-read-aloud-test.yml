@@ -45,6 +45,7 @@ jobs:
               --tests '*ConversationComposerFullScreenRetentionScreenshotTest.conversationSettingRevealsSpeakerAndSpeakerKeepsTogglingOnlyThisChat' \
               --tests '*WhiteNoiseAppStateTtsAutoReadTest' \
               --tests '*TtsAutoReadPreferencesTest' \
+              --tests '*AccountSetupLabelsTest' \
               --tests '*TtsAutoReadScreenIntegrationTest' \
               --tests '*TtsVoiceMediaSettingsScreenshotTest' \
               --tests '*ConversationAutoReadResumeTest' \

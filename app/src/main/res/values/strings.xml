@@ -2148,6 +2148,7 @@
     <string name="setup_finding_multi_device_unsupported">Conversations do not sync across devices.</string>
     <string name="setup_finding_other_installation_possible">Another installation may be using this identity.</string>
     <string name="setup_finding_discovery_incomplete">Discovery could not finish. No replacement will be inferred from this result.</string>
+    <string name="setup_finding_inspection_completed">Inspection completed. This alone does not confirm relay write support.</string>
     <string name="setup_profile_help">Add a name so people recognize you. You can do this later.</string>
     <string name="setup_details">Details</string>
     <string name="setup_hide_details">Hide details</string>

@@ -12,7 +12,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import dev.ipf.marmotkit.OnboardingActionFfi
-import dev.ipf.marmotkit.OnboardingFindingFfi
 import dev.ipf.marmotkit.OnboardingIssueFfi
 import dev.ipf.marmotkit.OnboardingRepairProposalFfi
 import dev.ipf.marmotkit.OnboardingStatusFfi
@@ -400,7 +399,7 @@ class AccountSetupContentTest {
     @Test fun retiredRelayIsNamedBesideItsFinding() {
         val snapshot = setupSnapshot(OnboardingStepFfi.RELAYS, listOf(OnboardingActionFfi.USE_RECOMMENDED_RELAYS))
         snapshot.steps.first { it.step == OnboardingStepFfi.RELAYS }.findings =
-            listOf(OnboardingFindingFfi(OnboardingIssueFfi.RETIRED_RELAY, "wss://retired.example"))
+            listOf(setupFinding(OnboardingIssueFfi.RETIRED_RELAY, "wss://retired.example"))
         show(AccountSetupState(snapshot = snapshot))
         composeRule.onNodeWithText("wss://retired.example").assertIsDisplayed()
         composeRule.onNodeWithText("This relay is retired.").assertIsDisplayed()
@@ -413,7 +412,7 @@ class AccountSetupContentTest {
         val snapshot = setupSnapshot(OnboardingStepFfi.SINGLE_DEVICE, listOf(OnboardingActionFfi.RETRY))
         snapshot.steps.first { it.step == OnboardingStepFfi.SINGLE_DEVICE }.apply {
             status = OnboardingStatusFfi.RETRYABLE_FAILURE
-            findings = listOf(OnboardingFindingFfi(OnboardingIssueFfi.TIMED_OUT, null))
+            findings = listOf(setupFinding(OnboardingIssueFfi.TIMED_OUT, null))
         }
         show(AccountSetupState(snapshot = snapshot))
         composeRule.onNodeWithText("This check timed out.").assertIsDisplayed()

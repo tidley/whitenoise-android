@@ -10,7 +10,6 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.LayoutDirection
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.ipf.marmotkit.OnboardingActionFfi
-import dev.ipf.marmotkit.OnboardingFindingFfi
 import dev.ipf.marmotkit.OnboardingIssueFfi
 import dev.ipf.marmotkit.OnboardingRelayCapabilityFfi
 import dev.ipf.marmotkit.OnboardingRelayRepairModeFfi
@@ -68,7 +67,7 @@ class AccountSetupContentScreenshotTest {
             snapshot =
                 relayDecision().apply {
                     steps.first { it.step == OnboardingStepFfi.RELAYS }.findings =
-                        listOf(OnboardingFindingFfi(OnboardingIssueFfi.RETIRED_RELAY, null))
+                        listOf(setupFinding(OnboardingIssueFfi.RETIRED_RELAY, null))
                 },
         )
 
@@ -132,7 +131,7 @@ class AccountSetupContentScreenshotTest {
                 listOf(OnboardingActionFfi.USE_RECOMMENDED_RELAYS, OnboardingActionFfi.EDIT_DISCOVERY_RELAYS),
             )
         snapshot.steps.first { it.step == OnboardingStepFfi.RELAYS }.findings =
-            listOf(OnboardingFindingFfi(OnboardingIssueFfi.MISSING, null))
+            listOf(setupFinding(OnboardingIssueFfi.MISSING, null))
         capture("missing_relays", AccountSetupState(snapshot = snapshot))
     }
 
@@ -386,7 +385,7 @@ class AccountSetupContentScreenshotTest {
                 listOf(OnboardingActionFfi.USE_RECOMMENDED_RELAYS, OnboardingActionFfi.RETRY),
             )
         snapshot.steps.first { it.step == OnboardingStepFfi.RELAYS }.findings =
-            listOf(OnboardingFindingFfi(OnboardingIssueFfi.RETIRED_RELAY, "wss://retired.example"))
+            listOf(setupFinding(OnboardingIssueFfi.RETIRED_RELAY, "wss://retired.example"))
         capture("retired_relay", AccountSetupState(snapshot = snapshot))
     }
 
@@ -395,7 +394,7 @@ class AccountSetupContentScreenshotTest {
         val snapshot = setupSnapshot(OnboardingStepFfi.SINGLE_DEVICE, listOf(OnboardingActionFfi.RETRY))
         snapshot.steps.first { it.step == OnboardingStepFfi.SINGLE_DEVICE }.apply {
             status = OnboardingStatusFfi.RETRYABLE_FAILURE
-            findings = listOf(OnboardingFindingFfi(OnboardingIssueFfi.TIMED_OUT, null))
+            findings = listOf(setupFinding(OnboardingIssueFfi.TIMED_OUT, null))
         }
         capture("device_retry", AccountSetupState(snapshot = snapshot))
     }
