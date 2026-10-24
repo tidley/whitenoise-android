@@ -175,6 +175,11 @@ internal fun ConversationTtsAutoReadEffects(
         }
         val entries = autoReadBacklogEntries()
         if (entries.isNotEmpty()) {
+            // Projection can suspend; enabling automatic reading must preserve an existing speech session.
+            val current = appState.ttsController.state.value
+            if (current is TtsState.Speaking || current is TtsState.Paused || current is TtsState.Preparing) {
+                return@LaunchedEffect
+            }
             entryBacklogConsumed =
                 appState.speakAloudAutoRead(
                     controller.group.groupIdHex,
