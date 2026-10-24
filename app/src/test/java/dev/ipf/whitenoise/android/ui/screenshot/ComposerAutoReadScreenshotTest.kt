@@ -3,6 +3,7 @@ package dev.ipf.whitenoise.android.ui.screenshot
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
@@ -62,7 +63,7 @@ class ComposerAutoReadScreenshotTest {
                     Surface {
                         ComposerPill(
                             textFieldValue = TextFieldValue(""),
-                            composerFocus = FocusRequester(),
+                            composerFocus = remember { FocusRequester() },
                             emojiPickerOpen = false,
                             onValueChange = {},
                             onEmojiPickerToggle = {},
