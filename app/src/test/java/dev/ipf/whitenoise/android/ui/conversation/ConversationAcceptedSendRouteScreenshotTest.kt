@@ -163,6 +163,15 @@ class ConversationAcceptedSendRouteScreenshotTest {
         assertEquals("the reader send publishes exactly once", 1, publishCount)
         assertTrue("accepted reader sends never animate across history", evidence.writes.none { it.animated })
         assertTrue(checkNotNull(evidence.viewport).mode is ConversationScrollMode.FollowingTail)
+        assertEquals(
+            "reader acceptance clears the shared origin draft",
+            null,
+            conversation.appState.draftStore.get(
+                ConversationTimelineTestIds.ACCOUNT_REF,
+                ConversationTimelineTestIds.GROUP_ID,
+            ),
+        )
+        // Returning from the sole reader input mounts an empty, unfocused compact conversation composer.
         composeRule.onRoot().captureRoboImage("src/test/snapshots/conversation_accepted_send_read_more_tail.png")
     }
 
