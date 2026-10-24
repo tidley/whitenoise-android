@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties.EditableText
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -120,19 +121,25 @@ class ConversationComposerFullScreenRetentionScreenshotTest {
         speaker.assertDoesNotExist()
 
         composeRule.runOnIdle { appState.setConversationAutoReadOverride(GROUP_A, TtsAutoReadOverride.ON) }
-        speaker
-            .assertIsDisplayed()
-            .assertIsOn()
-            .performClick()
-            .assertIsOff()
+        speaker.assertIsDisplayed().assertIsOn()
+        composeRule.mainClock.autoAdvance = false
+        speaker.performClick()
+        composeRule.mainClock.advanceTimeByFrame()
+        speaker.assertIsOff().assertIsNotEnabled()
+        composeRule.mainClock.advanceTimeBy(250)
+        speaker.assertIsDisplayed().assertIsOff()
+        composeRule.mainClock.advanceTimeBy(1_000)
+        speaker.assertDoesNotExist()
+        composeRule.mainClock.autoAdvance = true
         composeRule.runOnIdle {
             val reloaded = TtsAutoReadPreferences(context)
-            assertTrue(reloaded.isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_A))
+            assertEquals(false, reloaded.isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_A))
             assertEquals(false, reloaded.isConversationAutoRead(ACCOUNT_A, GROUP_A))
             assertEquals(false, reloaded.isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_B))
             assertEquals(false, reloaded.isComposerShortcutVisibleFor(ACCOUNT_B, GROUP_A))
         }
-        speaker.performClick().assertIsOn()
+        composeRule.runOnIdle { appState.setConversationAutoReadOverride(GROUP_A, TtsAutoReadOverride.ON) }
+        speaker.assertIsOn()
         composeRule.runOnIdle {
             assertEquals(TtsAutoReadOverride.ON, appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_A, GROUP_A))
             assertNull(appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_A, GROUP_B))
@@ -148,6 +155,28 @@ class ConversationComposerFullScreenRetentionScreenshotTest {
             assertEquals(false, TtsAutoReadPreferences(context).isComposerShortcutVisibleFor(ACCOUNT_A, GROUP_A))
             assertEquals(false, appState.isConversationAutoRead(GROUP_A))
         }
+    }
+
+    @Test
+    fun globalSpeechKeepsSpeakerAvailableWhenConversationSpeechIsToggledOff() {
+        val appState = createAppState("")
+        val chat = createConversation(appState)
+        val speaker = composeRule.onNodeWithContentDescription(context.getString(R.string.tts_auto_read_title))
+        mountConversation(appState, chat)
+        speaker.assertDoesNotExist()
+
+        composeRule.runOnIdle { appState.setTtsAutoReadGlobalDefault(true) }
+        speaker.assertIsDisplayed().assertIsOn()
+        speaker.performClick().assertIsOff()
+        speaker.performClick().assertIsOn()
+        speaker.performClick().assertIsOff()
+        composeRule.runOnIdle {
+            assertTrue(appState.ttsAutoReadPreferences.state.value.globalDefaultEnabled)
+            assertEquals(TtsAutoReadOverride.OFF, appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_A, GROUP_A))
+            assertNull(appState.ttsAutoReadPreferences.overrideFor(ACCOUNT_B, GROUP_A))
+        }
+        composeRule.runOnIdle { appState.setTtsAutoReadGlobalDefault(false) }
+        speaker.assertDoesNotExist()
     }
 
     @Test

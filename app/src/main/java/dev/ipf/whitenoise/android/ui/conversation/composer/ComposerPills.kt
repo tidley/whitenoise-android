@@ -8,11 +8,15 @@ import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -671,8 +675,15 @@ internal fun ComposerPill(
     val primaryTrailingWidth =
         (if (expandedTrailingActionInset > 0.dp) expandedTrailingActionInset + 4.dp else 0.dp) +
             (if (trailingAction != null) 40.dp else 0.dp)
+    val showAutoReadControl = autoReadEnabled != null && inputContentVisible && dictationControls == null
+    val autoReadVisibility =
+        remember(scrollOwnerKey, inputContentVisible, dictationControls != null) {
+            MutableTransitionState(showAutoReadControl)
+        }
+    autoReadVisibility.targetState = showAutoReadControl
+    // Keep its space while the slashed, disabled icon acknowledges OFF and fades away.
     val autoReadControlWidth =
-        if (autoReadEnabled != null && inputContentVisible && dictationControls == null) 48.dp else 0.dp
+        if (autoReadVisibility.currentState || autoReadVisibility.targetState) 48.dp else 0.dp
     val minimumDictationWidth =
         when {
             dictationControls != null -> DICTATION_ACTIVE_ACTIONS_WIDTH
@@ -1567,7 +1578,19 @@ internal fun ComposerPill(
                         ) {
                             if (draftTopWidth > 0.dp && !topOnSeparateRow) draftTopAction()
                             if (autoReadControlWidth > 0.dp) {
-                                ComposerAutoReadToggle(checkNotNull(autoReadEnabled), onAutoReadToggle)
+                                key(scrollOwnerKey) {
+                                    AnimatedVisibility(
+                                        visibleState = autoReadVisibility,
+                                        enter = EnterTransition.None,
+                                        exit = fadeOut(tween(durationMillis = 250, delayMillis = 350)),
+                                    ) {
+                                        ComposerAutoReadToggle(
+                                            checked = autoReadEnabled == true,
+                                            onClick = onAutoReadToggle,
+                                            enabled = autoReadEnabled != null,
+                                        )
+                                    }
+                                }
                             }
                             if (dictationControls != null) {
                                 Row(

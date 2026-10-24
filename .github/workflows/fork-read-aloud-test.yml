@@ -43,6 +43,7 @@ jobs:
               --tests '*ComposerDictationControlTest' \
               --tests '*ConversationComposerFullScreenRetentionScreenshotTest.speakerShortcutFollowsOptInWithoutChangingSpeechPolicy' \
               --tests '*ConversationComposerFullScreenRetentionScreenshotTest.conversationSettingRevealsSpeakerAndSpeakerKeepsTogglingOnlyThisChat' \
+              --tests '*ConversationComposerFullScreenRetentionScreenshotTest.globalSpeechKeepsSpeakerAvailableWhenConversationSpeechIsToggledOff' \
               --tests '*WhiteNoiseAppStateTtsAutoReadTest' \
               --tests '*TtsAutoReadPreferencesTest' \
               --tests '*AccountSetupLabelsTest' \

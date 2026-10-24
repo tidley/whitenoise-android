@@ -26997,7 +26997,7 @@
     ],
     "source_coverage": [
       {
-        "surface": "Use default clears the conversation speaker shortcut opt-in",
+        "surface": "Use default restores global speech policy and shortcut visibility",
         "source": "app/src/main/java/dev/ipf/whitenoise/android/state/TtsAutoReadPreferences.kt",
         "anchor": "fun clearConversationOverride(",
         "test_ids": ["TTS-006"]
@@ -27009,7 +27009,7 @@
         "test_ids": ["ONB-016"]
       },
       {
-        "surface": "Persistent account/chat speaker shortcut opt-in",
+        "surface": "Global and account/chat speech-driven speaker shortcut visibility",
         "source": "app/src/main/java/dev/ipf/whitenoise/android/state/TtsAutoReadPreferences.kt",
         "anchor": "fun isComposerShortcutVisibleFor(",
         "test_ids": ["TTS-006"]

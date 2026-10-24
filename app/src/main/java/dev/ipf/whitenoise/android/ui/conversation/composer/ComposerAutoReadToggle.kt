@@ -19,9 +19,11 @@ import dev.ipf.whitenoise.android.R
 internal fun ComposerAutoReadToggle(
     checked: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     IconToggleButton(
         checked = checked,
+        enabled = enabled,
         onCheckedChange = { onClick() },
         modifier = Modifier.size(48.dp),
         colors =
