@@ -9,6 +9,21 @@ import org.junit.Test
 
 class ConversationAutoReadResumeTest {
     @Test
+    fun browsingOlderHistoryDoesNotRewindTheArrivalWatermark() {
+        val live = listOf(message("live", 20uL))
+        val cursor = conversationAutoReadCursor(live)
+        val historicalWindow = listOf(message("old", 5uL), message("older-tail", 10uL))
+        val advanced = advanceConversationAutoReadCursor(cursor, historicalWindow)
+        assertEquals(cursor, advanced)
+        assertEquals(
+            listOf("new"),
+            conversationMessagesAfterAutoReadCursor(live + message("new", 21uL), advanced)
+                .map { it.record.messageIdHex },
+        )
+        assertEquals(cursor, advanceConversationAutoReadCursor(cursor, emptyList()))
+    }
+
+    @Test
     fun returnsOnlyRowsThatArrivedAfterBackgroundCursor() {
         val beforePause = listOf(message("one", 1uL), message("two", 2uL))
         val cursor = conversationAutoReadCursor(beforePause)
