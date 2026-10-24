@@ -173,7 +173,6 @@ import dev.ipf.whitenoise.android.ui.common.DragSelectionVisibleItem
 import dev.ipf.whitenoise.android.ui.common.ErrorContent
 import dev.ipf.whitenoise.android.ui.common.InlineErrorBanner
 import dev.ipf.whitenoise.android.ui.common.LoadFailurePlacement
-import dev.ipf.whitenoise.android.ui.common.WhiteNoiseScaffold
 import dev.ipf.whitenoise.android.ui.common.WindowSecureFlag
 import dev.ipf.whitenoise.android.ui.common.anchoredDragSelection
 import dev.ipf.whitenoise.android.ui.common.dragSelectionAutoScrollDelta
@@ -3844,7 +3843,8 @@ internal fun ConversationScreen(
                 forwardPayloads = batchSelectionUi.forwardPayloads,
             )
     }
-    WhiteNoiseScaffold(
+    ReaderComposerScaffold(
+        ownerKey = controller,
         modifier =
             Modifier
                 .fillMaxSize()
@@ -3943,11 +3943,12 @@ internal fun ConversationScreen(
                 playbackTransport = playbackTransport,
             )
         },
-        bottomBar = {
+        bottomBar = { readerCallbacks ->
+            val visibleKeyboardController = LocalSoftwareKeyboardController.current
             ConversationBottomBar(
                 compactHeight = compactHeightConversation,
                 dictationControlsVisible = dictationControlsVisible,
-                selectionMode = selectionMode,
+                selectionMode = readerCallbacks == null && selectionMode,
                 selectionActionAvailability =
                     batchSelectionUi.actionAvailability.let { availability ->
                         if (batchDeleteInFlight) {
@@ -4039,7 +4040,7 @@ internal fun ConversationScreen(
                         clipboard.setText(AnnotatedString(batchDeleteDiagnosticReport(retryState)))
                     }
                 },
-                searchOpen = navigationState.searchOpen,
+                searchOpen = readerCallbacks == null && navigationState.searchOpen,
                 searchMatchCount = effectiveSearchMatchIds.size,
                 searchActiveIndex = searchActiveIndex,
                 searchScanStatus = searchScanStatus,
@@ -4056,7 +4057,7 @@ internal fun ConversationScreen(
                 controller = controller,
                 appState = appState,
                 messageTextCopy = messageTextCopy,
-                onBack = exitConversation,
+                onBack = readerCallbacks?.onDismiss ?: exitConversation,
                 initialDraft = restoredDraftSnapshot?.textFieldValue ?: TextFieldValue(""),
                 onDraftChange =
                     conversationDictationDraftWriter(
@@ -4106,8 +4107,12 @@ internal fun ConversationScreen(
                     )
                 },
                 onAfterSend = {
-                    acceptedSendRevealedTranscript = true
-                    revealSentMessage()
+                    if (readerCallbacks != null) {
+                        readerCallbacks.onAfterSend()
+                    } else {
+                        acceptedSendRevealedTranscript = true
+                        revealSentMessage()
+                    }
                 },
                 onPickFromGallery = {
                     imagePickerLauncher.launch(
@@ -4141,7 +4146,11 @@ internal fun ConversationScreen(
                         )
                     }
                 },
-                onShareUser = { shareUserPickerOpen = true },
+                onShareUser = {
+                    // This picker is an activity surface, so hand off out of the modal reader first.
+                    readerCallbacks?.onDismiss?.invoke()
+                    shareUserPickerOpen = true
+                },
                 onShareContact = {
                     contactPickerLauncher.launch(Unit)
                 },
@@ -4191,10 +4200,10 @@ internal fun ConversationScreen(
                 },
                 onComposerPreImeBack = {
                     if (composerDismissInProgress) {
-                        exitConversation()
+                        (readerCallbacks?.onDismiss ?: exitConversation)()
                     } else {
                         composerDismissInProgress = true
-                        keyboardController?.hide()
+                        visibleKeyboardController?.hide()
                     }
                 },
                 composerDismissInProgress = composerDismissInProgress,
@@ -4203,12 +4212,16 @@ internal fun ConversationScreen(
                 onKeyboardRestoreFromCustomInputFailed = { suppressNextImeOpenReanchor.set(false) },
                 recentEmojis = recentEmojiRecentsOwner.recents,
                 onEmojiUsed = { recentEmojiRecentsOwner.onEmojiUsed(it) },
-                onTimelineComposerMeasured = timelineViewport::onComposerMeasured,
+                onTimelineComposerMeasured = { foreground, compact ->
+                    if (readerCallbacks == null) timelineViewport.onComposerMeasured(foreground, compact)
+                },
                 onBottomChromeMeasured = { heightPx ->
-                    timelineViewport.onBottomChromeMeasured(heightPx)
-                    bottomChromeHeightObserver.onMeasured(heightPx)
-                    if (measuredBottomChromeHeightPx != heightPx) {
-                        measuredBottomChromeHeightPx = heightPx
+                    if (readerCallbacks == null) {
+                        timelineViewport.onBottomChromeMeasured(heightPx)
+                        bottomChromeHeightObserver.onMeasured(heightPx)
+                        if (measuredBottomChromeHeightPx != heightPx) {
+                            measuredBottomChromeHeightPx = heightPx
+                        }
                     }
                 },
             )

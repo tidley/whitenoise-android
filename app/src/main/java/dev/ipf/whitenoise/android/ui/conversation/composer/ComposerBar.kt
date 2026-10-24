@@ -291,6 +291,7 @@ internal class ComposerTextState(
     private var contentRevision = 0L
     val valueState: MutableState<TextFieldValue> = mutableStateOf(initial)
     val preEditState: MutableState<TextFieldValue?> = mutableStateOf(null)
+    val editOwnerState: MutableState<String?> = mutableStateOf(null)
 
     /**
      * True from the moment an accepted send empties the field until the pill has applied that
@@ -602,7 +603,7 @@ internal fun ComposerBar(
     // the message id so a tap-Edit on a different message snapshots a fresh
     // baseline.
     var preEditFieldValue by textState.preEditState
-    var composerTextEditOwnerId by remember(draftKey) { mutableStateOf<String?>(null) }
+    var composerTextEditOwnerId by textState.editOwnerState
     // Claim focus on edit-entry so the IME opens with the caret at the end
     // of the prefill, without making the user tap the field a second time.
     // `composerFocus` is now hoisted in via a parameter (#589) so the
@@ -618,10 +619,12 @@ internal fun ComposerBar(
             // if there's already an edit chain). Selection at `length` lands
             // the caret past the last character — same caret model as a
             // long-press-to-edit on every other modern chat composer.
-            if (preEditFieldValue == null) preEditFieldValue = textFieldValue
-            val prefill = editingInitialText.orEmpty()
-            textState.updateValue(TextFieldValue(text = prefill, selection = TextRange(prefill.length)))
-            composerTextEditOwnerId = editingMessageId
+            if (composerTextEditOwnerId != editingMessageId) {
+                if (preEditFieldValue == null) preEditFieldValue = textFieldValue
+                val prefill = editingInitialText.orEmpty()
+                textState.updateValue(TextFieldValue(text = prefill, selection = TextRange(prefill.length)))
+                composerTextEditOwnerId = editingMessageId
+            }
             onBottomInputChanged()
             runCatching { composerFocus.requestFocus() }
         } else if (preEditFieldValue != null) {

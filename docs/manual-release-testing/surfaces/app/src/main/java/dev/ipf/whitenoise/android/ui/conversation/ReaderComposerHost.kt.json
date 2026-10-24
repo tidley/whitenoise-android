@@ -1,0 +1,28 @@
+{
+  "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ReaderComposerHost.kt",
+  "legacy_sha256": "355dccf5b36f7d464c28d3527e85afd135ca2b82c1bfe550f8e3716587d06bb8",
+  "categories": {
+    "composable_surfaces": [
+      {
+        "surface": "ReaderComposerScaffold",
+        "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ReaderComposerHost.kt",
+        "anchor": "fun ReaderComposerScaffold(",
+        "test_ids": ["MSG-039", "CON-022"]
+      },
+      {
+        "surface": "SharedReaderComposer",
+        "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ReaderComposerHost.kt",
+        "anchor": "fun SharedReaderComposer(",
+        "test_ids": ["MSG-039", "CON-022"]
+      }
+    ],
+    "source_coverage": [
+      {
+        "surface": "Read more retains the transcript's resting composer clearance",
+        "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ReaderComposerHost.kt",
+        "anchor": "CONVERSATION_COMPOSER_SLOT_TAG",
+        "test_ids": ["MSG-039"]
+      }
+    ]
+  }
+}
