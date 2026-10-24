@@ -7,6 +7,20 @@ import org.junit.Test
 import java.io.File
 
 class LongMessageFullScreenComposerCoverageTest {
+    /** The reader must receive the fully wired composer, not rely on optional ComposerBar defaults. */
+    @Test
+    fun readerRoutesThroughTheConversationOwnedFullComposer() {
+        val screen = conversationSource("ConversationScreen.kt").readText()
+        val bubble = messageBubbleSource().readText()
+        assertTrue("the conversation must provide its configured bottom bar", "ReaderComposerScaffold(" in screen)
+        assertTrue("reader send acceptance must keep the reader's own handoff", "readerCallbacks.onAfterSend()" in screen)
+        assertTrue("the expanded reader must consume the shared host", "LocalReaderComposerHost.current" in bubble)
+        assertTrue("the expanded reader must use the full composer", "SharedReaderComposer(" in bubble)
+        assertTrue("search chrome is not a reader composer", "searchOpen = readerCallbacks == null &&" in screen)
+        assertTrue("selection chrome is not a reader composer", "selectionMode = readerCallbacks == null &&" in screen)
+        assertTrue("activity-only pickers must dismiss the reader first", "readerCallbacks?.onDismiss?.invoke()" in screen)
+    }
+
     @Test
     fun fullScreenLongMessageReaderReservesComposerSlot() {
         val body = messageFullScreenSource().readText().functionBody("MessageFullScreenView")

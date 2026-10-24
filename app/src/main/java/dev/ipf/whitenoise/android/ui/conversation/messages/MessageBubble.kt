@@ -133,9 +133,11 @@ import dev.ipf.whitenoise.android.ui.conversation.ConversationUiTrace
 import dev.ipf.whitenoise.android.ui.conversation.InvitationActions
 import dev.ipf.whitenoise.android.ui.conversation.InviteAcceptanceResolutionStatus
 import dev.ipf.whitenoise.android.ui.conversation.LocalPollVotesHost
+import dev.ipf.whitenoise.android.ui.conversation.LocalReaderComposerHost
 import dev.ipf.whitenoise.android.ui.conversation.PollCard
 import dev.ipf.whitenoise.android.ui.conversation.PollMessageActionOwner
 import dev.ipf.whitenoise.android.ui.conversation.PollMessageContent
+import dev.ipf.whitenoise.android.ui.conversation.SharedReaderComposer
 import dev.ipf.whitenoise.android.ui.conversation.composer.BlockedDmComposerNotice
 import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerBar
 import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerGate
@@ -2955,6 +2957,7 @@ internal fun MessageBubble(
                     },
                 )
                 if (surfaces.expandedFullView && !deleted) {
+                    val readerComposerHost = LocalReaderComposerHost.current
                     val readerSession = surfaces.expandedFullViewSession
                     ReaderSendDismissal(surfaces, onReaderSendAccepted)
                     val groupIdHex = controller.group.groupIdHex
@@ -3043,7 +3046,17 @@ internal fun MessageBubble(
                                         onDecline = onDeclineInvite,
                                     )
                                 ComposerGate.COMPOSER ->
-                                    if (!actionsReadOnly) {
+                                    if (!actionsReadOnly && readerComposerHost != null) {
+                                        SharedReaderComposer(
+                                            host = readerComposerHost,
+                                            onAfterSend = { surfaces.finishExpandedReaderSend(readerSession) },
+                                            onDismiss = {
+                                                if (surfaces.expandedFullViewSession == readerSession) {
+                                                    surfaces.expandedFullView = false
+                                                }
+                                            },
+                                        )
+                                    } else if (!actionsReadOnly) {
                                         ComposerBar(
                                             replyingToEmoji =
                                                 rememberReplyReceivedEmoji(

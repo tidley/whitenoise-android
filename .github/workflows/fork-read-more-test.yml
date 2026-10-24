@@ -1,0 +1,116 @@
+name: Fork Read More Composer Test APK
+
+on:
+  push:
+    branches: [feat/read-more-composer-parity]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-apk:
+    if: github.repository == 'tidley/whitenoise-android'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Configure native cache
+        run: printf 'WHITENOISE_MARMOTKIT_CACHE_DIR=%s\n' "$RUNNER_TEMP/marmotkit-cache" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: false
+      - name: Install Android SDK packages
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"'
+      - name: Validate manual test documentation
+        run: |
+          python3 scripts/check_manual_test_guide.py
+          python3 -m unittest scripts/test_check_manual_test_guide.py scripts/test_manual_test_fragments.py
+      - name: Check Kotlin style
+        run: ./gradlew :app:ktlintCheck :app:detekt --continue --no-daemon --stacktrace
+      - name: Exercise reader and composer regressions in both distributions
+        run: |
+          for flavor in Zapstore Play; do
+            ./gradlew ":app:testDev${flavor}DebugUnitTest" \
+              --tests '*LongMessageFullScreenComposerCoverageTest' \
+              --tests '*ReaderComposerHostTest' \
+              --tests '*MessageFullScreenSelectionBackTest' \
+              --tests '*MessageFullScreenMarkdownTest' \
+              --tests '*MessageFullScreenMarkdownScreenshotTest' \
+              --tests '*MessageBubbleReaderSendHandoffTest' \
+              --tests '*ComposerDictationControlTest' \
+              --tests '*ConversationComposerFullScreenRetentionScreenshotTest' \
+              -Proborazzi.test.verify=true -PciTestForks=1 --no-daemon --stacktrace
+          done
+      - name: Build unchanged candidate and compatible upgrade baseline
+        run: |
+          ./gradlew :app:assembleDevPlayDebug -Pandroid.injected.build.abi=arm64-v8a \
+            -Pandroid.injected.testOnly=false --no-daemon --stacktrace
+          mkdir -p candidate-apk
+          for root in app/build/outputs/apk app/build/intermediates/apk; do
+            if [[ -d "$root" ]]; then
+              find "$root" -type f -name '*.apk' -exec cp '{}' candidate-apk/ \;
+            fi
+          done
+          test "$(find candidate-apk -name '*.apk' | wc -l)" -eq 1
+          printf '%s\n' "$GITHUB_SHA" > candidate-apk/SOURCE_COMMIT
+          (cd candidate-apk && sha256sum *.apk > SHA256SUMS)
+      - name: Checkout current-master runtime baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: marmot-protocol/whitenoise-android
+          ref: 274fa92c9739c948268a46296bb3c15f02b546cb
+          path: smoke-baseline
+          persist-credentials: false
+      - name: Build and verify the upgrade pair
+        run: |
+          cmp app/src/main/marmotkit/MARMOT_VERSION smoke-baseline/app/src/main/marmotkit/MARMOT_VERSION
+          (cd smoke-baseline && ./gradlew :app:assembleDevPlayDebug \
+            -Pandroid.injected.build.abi=arm64-v8a -Pandroid.injected.testOnly=false --no-daemon --stacktrace)
+          mkdir -p baseline-apk
+          for root in smoke-baseline/app/build/outputs/apk smoke-baseline/app/build/intermediates/apk; do
+            if [[ -d "$root" ]]; then
+              find "$root" -type f -name '*.apk' -exec cp '{}' baseline-apk/ \;
+            fi
+          done
+          test "$(find baseline-apk -name '*.apk' | wc -l)" -eq 1
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          for apk in candidate-apk/*.apk baseline-apk/*.apk; do
+            "$tools/apksigner" verify "$apk"
+            "$tools/aapt" dump badging "$apk" | grep "^package: name='dev.ipf.whitenoise.android.dev' "
+          done
+          candidate_cert=$("$tools/apksigner" verify --print-certs candidate-apk/*.apk | grep 'Signer #1 certificate SHA-256 digest:')
+          baseline_cert=$("$tools/apksigner" verify --print-certs baseline-apk/*.apk | grep 'Signer #1 certificate SHA-256 digest:')
+          [[ "$candidate_cert" == "$baseline_cert" ]]
+          printf '%s\n' '274fa92c9739c948268a46296bb3c15f02b546cb' > baseline-apk/SOURCE_COMMIT
+          (cd baseline-apk && sha256sum *.apk > SHA256SUMS)
+      - name: Retain exact candidate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: read-more-dev-apk
+          path: candidate-apk/
+          if-no-files-found: error
+      - name: Retain compatible smoke baseline
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: read-more-baseline-apk
+          path: baseline-apk/
+          if-no-files-found: error
+      - name: Retain test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: read-more-test-results
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            app/build/reports/detekt/
+            app/build/reports/ktlint/
