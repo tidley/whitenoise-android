@@ -88,7 +88,11 @@ class ReaderComposerHostTest {
     @Config(qualifiers = "en-w320dp-h780dp-mdpi")
     fun readerComposerLargeRtl() = captureReader("reader_composer_large_rtl", dark = true, largeRtl = true)
 
-    private fun captureReader(name: String, dark: Boolean, largeRtl: Boolean = false) {
+    private fun captureReader(
+        name: String,
+        dark: Boolean,
+        largeRtl: Boolean = false,
+    ) {
         // Dialogs create a new root density from Android resources, not the activity's LocalDensity.
         RuntimeEnvironment.setFontScale(if (largeRtl) 2f else 1f)
         render(dark = dark, largeRtl = largeRtl)
