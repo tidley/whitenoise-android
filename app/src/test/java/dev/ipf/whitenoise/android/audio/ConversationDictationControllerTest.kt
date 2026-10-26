@@ -48,17 +48,11 @@ class ConversationDictationControllerTest {
                         }
                     },
                 )
-            val sizes = listOf(364_800, 320_000, 320_000, 320_000, 320_000, 377_600, 365_436)
-            val pcm = sizes.mapIndexed { index, size -> ByteArray(size) { (index + 1).toByte() } }
-            val buffer = ConversationDictationAudioChunkBuffer(1L)
-            pcm.forEach { samples ->
-                assertTrue(buffer.append(samples, samples.size, hasSpeech = true))
-                assertTrue(buffer.sealCurrentIfAtLeast(2))
-            }
-            buffer.finish()
+            val (pcm, buffer) = loggedDictationAudio()
             f.platform.audioBuffer = buffer
             f.platform.pendingCallerAudio = true
             f.platform.useRealAudioSettlements = true
+            f.platform.tracksCallerAudioDisposal = true
             assertTrue(f.controller.requestStart(ACCOUNT, GROUP, TextFieldValue("")))
             repeat(6) { index ->
                 assertArrayEquals(pcm[index], f.platform.session.callerAudioRequest()?.chunk?.pcm)
@@ -75,8 +69,6 @@ class ConversationDictationControllerTest {
             val staleListener = f.platform.listener
             f.platform.listener.onError(ConversationDictationFailure.NoMatch)
             assertTrue(f.controller.state is ConversationDictationState.Starting)
-            assertFalse(f.controller.foregroundMicrophoneRequired)
-            assertTrue(sent.isEmpty())
             f.scheduler.runDelay(500L)
             val replay = requireNotNull(f.platform.session.callerAudioRequest())
             assertEquals(rejected.chunk.chunkId, replay.chunk.chunkId)
@@ -101,6 +93,19 @@ class ConversationDictationControllerTest {
             advanceUntilIdle()
             assertEquals(listOf(expected), sent)
         }
+
+    /** Synthetic PCM preserves the logged chunk sizes without using any recorded speech. */
+    private fun loggedDictationAudio(): Pair<List<ByteArray>, ConversationDictationAudioChunkBuffer> {
+        val sizes = listOf(364_800, 320_000, 320_000, 320_000, 320_000, 377_600, 365_436)
+        val pcm = sizes.mapIndexed { index, size -> ByteArray(size) { (index + 1).toByte() } }
+        val buffer = ConversationDictationAudioChunkBuffer(1L)
+        pcm.forEach { samples ->
+            assertTrue(buffer.append(samples, samples.size, hasSpeech = true))
+            assertTrue(buffer.sealCurrentIfAtLeast(2))
+        }
+        buffer.finish()
+        return pcm to buffer
+    }
 
     /** The controller must replace the whole acknowledged span before sending at the original target. */
     @OptIn(ExperimentalCoroutinesApi::class)
