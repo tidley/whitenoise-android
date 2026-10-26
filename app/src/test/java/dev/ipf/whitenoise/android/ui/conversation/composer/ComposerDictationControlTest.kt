@@ -11,8 +11,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -68,31 +66,27 @@ class ComposerDictationControlTest {
     }
 
     @Test
-    fun readAloudToggleSitsBeforeDictationAndKeepsItsStateAcrossDictation() {
+    fun readAloudShortcutDoesNotOccupyTheDictationActionRow() {
         val autoRead = mutableStateOf(false)
         val controller = render(autoRead = autoRead)
         val toggle = composeRule.onNodeWithContentDescription("Read messages aloud")
-        toggle.assertIsDisplayed().assertIsOff()
-        val speakerBounds = toggle.getUnclippedBoundsInRoot()
-        val micBounds = composeRule.onNodeWithContentDescription("Dictate text").getUnclippedBoundsInRoot()
-        assertTrue(speakerBounds.right <= micBounds.left)
-
-        toggle.performClick().assertIsOn()
+        toggle.assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Dictate text").performClick()
         toggle.assertDoesNotExist()
         composeRule.runOnIdle { controller.cancel() }
-        toggle.assertIsDisplayed().assertIsOn()
-        toggle.performClick().assertIsOff()
+        toggle.assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
+        assertFalse(autoRead.value)
     }
 
     @Test
-    fun readAloudToggleFitsBesideDictationAtLargeFontInRtl() {
+    fun readAloudShortcutDoesNotCompeteWithDictationAtLargeFontInRtl() {
         render(fontScale = 2f, rtl = true, withAttachments = true, autoRead = mutableStateOf(true))
         val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
         val mic = composeRule.onNodeWithContentDescription("Dictate text")
-        speaker.assertIsDisplayed().assertIsOn()
+        speaker.assertDoesNotExist()
         mic.assertIsDisplayed()
-        assertTrue(mic.getUnclippedBoundsInRoot().right <= speaker.getUnclippedBoundsInRoot().left)
     }
 
     /** A real controller tail failure leaves a normal composer, with audio recovery only in its own chat. */

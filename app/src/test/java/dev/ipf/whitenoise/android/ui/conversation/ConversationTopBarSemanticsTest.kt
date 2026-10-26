@@ -17,8 +17,11 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -62,6 +65,29 @@ class ConversationTopBarSemanticsTest {
     val composeRule = createComposeRule()
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
+
+    /** The speaker is an independent header action, not part of the title/details target. */
+    @Test
+    fun readAloudShortcutAppearsAtHeaderEndAndToggles() {
+        val state = appState()
+        state.ttsAutoReadPreferences.setComposerShortcutVisible(true)
+        val controller = ConversationController(state, group())
+        var detailsCalls = 0
+        render(state, controller, onOpenDetails = { detailsCalls += 1 })
+
+        val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
+        speaker.assertIsOff().assertHeightIsAtLeast(48.dp)
+        val header = composeRule.onNodeWithTag(CONVERSATION_TOP_BAR_TAG).fetchSemanticsNode().boundsInRoot
+        val bounds = speaker.fetchSemanticsNode().boundsInRoot
+        assertTrue(bounds.left >= header.center.x)
+        assertTrue(bounds.right <= header.right)
+        speaker.performClick().assertIsOn()
+        composeRule.runOnIdle {
+            assertTrue(state.conversationAutoReadFor(ACCOUNT_REF, GROUP_ID))
+            assertEquals(0, detailsCalls)
+        }
+        speaker.performClick().assertIsOff()
+    }
 
     /** The full title is one accessible 48dp action and preserves its performance selector. */
     @Test
