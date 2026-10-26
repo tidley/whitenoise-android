@@ -124,7 +124,11 @@ class ConversationTopBarSemanticsTest {
         val controller = ConversationController(state, group().copy(name = "A long conversation title"))
         render(state, controller, compactHeight = true, fontScale = 2f, rtl = true)
         val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
-        speaker.assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp).performClick().assertIsOn()
+        speaker
+            .assertHeightIsAtLeast(48.dp)
+            .assertWidthIsAtLeast(48.dp)
+            .performClick()
+            .assertIsOn()
         val header = composeRule.onNodeWithTag(CONVERSATION_TOP_BAR_TAG).fetchSemanticsNode().boundsInRoot
         val bounds = speaker.fetchSemanticsNode().boundsInRoot
         val details =
