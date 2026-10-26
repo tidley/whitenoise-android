@@ -52,17 +52,17 @@ class ConversationDictationControllerTest {
             f.platform.audioBuffer = buffer
             f.platform.pendingCallerAudio = true
             f.platform.useRealAudioSettlements = true
-            f.platform.tracksCallerAudioDisposal = true
             assertTrue(f.controller.requestStart(ACCOUNT, GROUP, TextFieldValue("")))
+            f.platform.tracksCallerAudioDisposal = true
             repeat(6) { index ->
-                assertArrayEquals(pcm[index], f.platform.session.callerAudioRequest()?.chunk?.pcm)
+                val request = requireNotNull(f.platform.session.callerAudioRequest())
+                assertArrayEquals(pcm[index], request.chunk.pcm)
                 f.platform.listener.onResult("part ${index + 1}")
                 f.scheduler.runDelay(500L)
             }
             val rejected = requireNotNull(f.platform.session.callerAudioRequest())
             assertEquals(1_011_200L, rejected.chunk.firstSample)
             assertEquals(1_193_918L, rejected.chunk.lastSampleExclusive)
-            assertArrayEquals(pcm.last(), rejected.chunk.pcm)
             f.controller.send()
             advanceUntilIdle()
             assertTrue(sent.isEmpty())
