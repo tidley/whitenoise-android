@@ -120,7 +120,8 @@ class ConversationTopBarSemanticsTest {
     fun readAloudShortcutLongLtrHeader() {
         val state = appState()
         state.ttsAutoReadPreferences.setComposerShortcutVisible(true)
-        val controller = ConversationController(state, group().copy(name = "White Noise friends and family community group"))
+        val controller =
+            ConversationController(state, group().copy(name = "White Noise friends and family community group"))
         render(state, controller, darkTheme = true)
         val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
         speaker.assertIsOff().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
