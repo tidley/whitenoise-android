@@ -12,7 +12,7 @@
     ],
     "settings_controls": [
       {
-        "surface": "Composer speaker accessible label",
+        "surface": "Conversation-header speaker accessible label",
         "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/composer/ComposerAutoReadToggle.kt",
         "anchor": "R.string.tts_auto_read_title",
         "test_ids": ["TTS-006"]

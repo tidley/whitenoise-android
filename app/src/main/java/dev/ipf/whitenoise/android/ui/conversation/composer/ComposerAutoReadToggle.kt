@@ -13,7 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.ipf.whitenoise.android.R
 
-/** A compact glyph with a full touch target; checked state is also exposed to TalkBack. */
+/** Shared speaker glyph with a full touch target and checked state exposed to TalkBack. */
 @Composable
 @Suppress("FunctionNaming")
 internal fun ComposerAutoReadToggle(

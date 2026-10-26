@@ -2,8 +2,6 @@ package dev.ipf.whitenoise.android.ui.conversation.composer
 
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -67,8 +65,7 @@ class ComposerDictationControlTest {
 
     @Test
     fun readAloudShortcutDoesNotOccupyTheDictationActionRow() {
-        val autoRead = mutableStateOf(false)
-        val controller = render(autoRead = autoRead)
+        val controller = render()
         val toggle = composeRule.onNodeWithContentDescription("Read messages aloud")
         toggle.assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
@@ -77,12 +74,11 @@ class ComposerDictationControlTest {
         composeRule.runOnIdle { controller.cancel() }
         toggle.assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
-        assertFalse(autoRead.value)
     }
 
     @Test
     fun readAloudShortcutDoesNotCompeteWithDictationAtLargeFontInRtl() {
-        render(fontScale = 2f, rtl = true, withAttachments = true, autoRead = mutableStateOf(true))
+        render(fontScale = 2f, rtl = true, withAttachments = true)
         val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
         val mic = composeRule.onNodeWithContentDescription("Dictate text")
         speaker.assertDoesNotExist()
@@ -337,7 +333,6 @@ class ComposerDictationControlTest {
         voiceRecordingController: VoiceRecordingController? = null,
         replyingTo: dev.ipf.marmotkit.AppMessageRecordFfi? = null,
         suppliedController: ConversationDictationController? = null,
-        autoRead: MutableState<Boolean>? = null,
     ): ConversationDictationController {
         val dictationController = suppliedController ?: idleDictationController(draft)
         composeRule.setContent {
@@ -357,8 +352,6 @@ class ComposerDictationControlTest {
                         dictationController = dictationController,
                         dictationAccountRef = ACCOUNT,
                         dictationGroupIdHex = GROUP,
-                        autoReadEnabled = autoRead?.value,
-                        onAutoReadToggle = { autoRead?.let { it.value = !it.value } },
                         voiceRecordingController = voiceRecordingController,
                         modifier = Modifier.width(320.dp).testTag(ROOT_TAG),
                     )

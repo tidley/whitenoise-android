@@ -10,6 +10,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Density
@@ -34,23 +35,16 @@ class ComposerAutoReadScreenshotTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun offLight() = capture("composer_auto_read_off_light", checked = false)
+    fun absentLight() = capture("composer_dictation_without_speaker_light")
 
     @Test
-    fun offDark() = capture("composer_auto_read_off_dark", checked = false, dark = true)
+    fun absentDark() = capture("composer_dictation_without_speaker_dark", dark = true)
 
     @Test
-    fun onLight() = capture("composer_auto_read_on_light", checked = true)
-
-    @Test
-    fun onDark() = capture("composer_auto_read_on_dark", checked = true, dark = true)
-
-    @Test
-    fun onLargeRtl() = capture("composer_auto_read_on_large_rtl", checked = true, rtl = true)
+    fun absentLargeRtl() = capture("composer_dictation_without_speaker_large_rtl", rtl = true)
 
     private fun capture(
         name: String,
-        checked: Boolean,
         dark: Boolean = false,
         rtl: Boolean = false,
     ) {
@@ -72,7 +66,6 @@ class ComposerAutoReadScreenshotTest {
                             onPickFromGallery = {},
                             onPickDocument = null,
                             onDictation = {},
-                            autoReadEnabled = checked,
                             actionColors = accountActionColors(null),
                             modifier = Modifier.width(320.dp).testTag("composer-auto-read"),
                         )
@@ -80,6 +73,7 @@ class ComposerAutoReadScreenshotTest {
                 }
             }
         }
+        composeRule.onNodeWithContentDescription("Read messages aloud").assertDoesNotExist()
         composeRule.onNodeWithTag("composer-auto-read").captureRoboImage("src/test/snapshots/$name.png")
     }
 }

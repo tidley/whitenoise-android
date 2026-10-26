@@ -8,15 +8,11 @@ import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -346,8 +342,6 @@ internal fun ComposerPill(
     onPickDocument: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onDictation: (() -> Unit)? = null,
-    autoReadEnabled: Boolean? = null,
-    onAutoReadToggle: () -> Unit = {},
     dictationControls: (@Composable RowScope.() -> Unit)? = null,
     // Gate inputs only: the sheet these open lives in ComposerBar, but the
     // attach button must appear whenever ANY attachment action is wired, not
@@ -675,20 +669,11 @@ internal fun ComposerPill(
     val primaryTrailingWidth =
         (if (expandedTrailingActionInset > 0.dp) expandedTrailingActionInset + 4.dp else 0.dp) +
             (if (trailingAction != null) 40.dp else 0.dp)
-    val showAutoReadControl = autoReadEnabled != null && inputContentVisible && dictationControls == null
-    val autoReadVisibility =
-        remember(scrollOwnerKey, inputContentVisible, dictationControls != null) {
-            MutableTransitionState(showAutoReadControl)
-        }
-    autoReadVisibility.targetState = showAutoReadControl
-    // Keep its space while the slashed, disabled icon acknowledges OFF and fades away.
-    val autoReadControlWidth =
-        if (autoReadVisibility.currentState || autoReadVisibility.targetState) 48.dp else 0.dp
     val minimumDictationWidth =
         when {
             dictationControls != null -> DICTATION_ACTIVE_ACTIONS_WIDTH
-            onDictation != null -> 40.dp + autoReadControlWidth
-            else -> autoReadControlWidth
+            onDictation != null -> 40.dp
+            else -> 0.dp
         }
     // Automatic geometry may still be animating its outer reservation; budget the smaller surface.
     val navigationSurfaceWidth =
@@ -706,8 +691,8 @@ internal fun ComposerPill(
     val targetDictationControlWidth =
         when {
             dictationControls != null -> minOf(DICTATION_ACTIVE_ACTIONS_WIDTH, availableDictationWidth)
-            onDictation != null -> 40.dp + autoReadControlWidth
-            else -> autoReadControlWidth
+            onDictation != null -> 40.dp
+            else -> 0.dp
         }
     val dictationControlWidthState =
         animateDpAsState(
@@ -1577,21 +1562,6 @@ internal fun ComposerPill(
                                     ).height(48.dp),
                         ) {
                             if (draftTopWidth > 0.dp && !topOnSeparateRow) draftTopAction()
-                            if (autoReadControlWidth > 0.dp) {
-                                key(scrollOwnerKey) {
-                                    AnimatedVisibility(
-                                        visibleState = autoReadVisibility,
-                                        enter = EnterTransition.None,
-                                        exit = fadeOut(tween(durationMillis = 250, delayMillis = 350)),
-                                    ) {
-                                        ComposerAutoReadToggle(
-                                            checked = autoReadEnabled == true,
-                                            onClick = onAutoReadToggle,
-                                            enabled = autoReadEnabled != null,
-                                        )
-                                    }
-                                }
-                            }
                             if (dictationControls != null) {
                                 Row(
                                     Modifier.layout { measurable, constraints ->

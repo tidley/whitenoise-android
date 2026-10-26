@@ -401,8 +401,6 @@ internal fun ComposerBar(
     dictationAccountRef: String? = null,
     dictationGroupIdHex: String? = null,
     dictationControlsVisible: Boolean = true,
-    autoReadEnabled: Boolean? = null,
-    onAutoReadToggle: () -> Unit = {},
     editingMessageId: String? = null,
     editingInitialText: String? = null,
     onCancelEdit: () -> Unit = {},
@@ -1359,8 +1357,6 @@ internal fun ComposerBar(
                         composerFocus = composerFocus,
                         emojiPickerOpen = composerEmojiPickerRequested,
                         actionColors = actionColors,
-                        autoReadEnabled = autoReadEnabled.takeUnless { dictationOriginHidden },
-                        onAutoReadToggle = onAutoReadToggle,
                         onComposerFocusChanged = { focused ->
                             // A tap on the text field while the emoji pane is open
                             // asks for the keyboard; the pending guard drops the
