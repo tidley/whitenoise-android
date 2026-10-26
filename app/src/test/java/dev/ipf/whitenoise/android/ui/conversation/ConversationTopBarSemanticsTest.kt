@@ -115,6 +115,32 @@ class ConversationTopBarSemanticsTest {
             .captureRoboImage("src/test/snapshots/conversation_header_speaker_on_dark.png")
     }
 
+    /** Long LTR titles leave the speaker visible and independently tappable in both states. */
+    @Test
+    fun readAloudShortcutLongLtrHeader() {
+        val state = appState()
+        state.ttsAutoReadPreferences.setComposerShortcutVisible(true)
+        val controller = ConversationController(state, group().copy(name = "White Noise friends and family community group"))
+        render(state, controller, darkTheme = true)
+        val speaker = composeRule.onNodeWithContentDescription("Read messages aloud")
+        speaker.assertIsOff().assertHeightIsAtLeast(48.dp).assertWidthIsAtLeast(48.dp)
+        val header = composeRule.onNodeWithTag(CONVERSATION_TOP_BAR_TAG).fetchSemanticsNode().boundsInRoot
+        val bounds = speaker.fetchSemanticsNode().boundsInRoot
+        val details =
+            composeRule
+                .onNodeWithTag(PerformanceTestTags.OPEN_GROUP_DETAILS)
+                .fetchSemanticsNode()
+                .boundsInRoot
+        assertTrue(bounds.left >= details.right && bounds.right <= header.right)
+        composeRule
+            .onNodeWithTag(CONVERSATION_TOP_BAR_TAG)
+            .captureRoboImage("src/test/snapshots/conversation_header_speaker_off_long_ltr_dark.png")
+        speaker.performClick().assertIsOn()
+        composeRule
+            .onNodeWithTag(CONVERSATION_TOP_BAR_TAG)
+            .captureRoboImage("src/test/snapshots/conversation_header_speaker_on_long_ltr_dark.png")
+    }
+
     /** Narrow RTL headers keep the speaker's complete touch target clear of a long title. */
     @Test
     @Config(qualifiers = "en-w320dp-h780dp-mdpi")
