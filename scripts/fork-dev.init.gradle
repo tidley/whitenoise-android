@@ -1,5 +1,6 @@
 // Fork-only packaging; never change the normal Dev, staging or production identities.
 gradle.beforeProject { project ->
+    if (project.path != ':app') return
     project.pluginManager.withPlugin('com.android.application') {
         project.extensions.getByName('androidComponents').finalizeDsl { android ->
             def source = System.getenv('FORK_SOURCE_SHA')
