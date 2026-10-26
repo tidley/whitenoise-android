@@ -128,7 +128,10 @@ class ConversationTopBarSemanticsTest {
         val header = composeRule.onNodeWithTag(CONVERSATION_TOP_BAR_TAG).fetchSemanticsNode().boundsInRoot
         val bounds = speaker.fetchSemanticsNode().boundsInRoot
         val details =
-            composeRule.onNodeWithTag(PerformanceTestTags.OPEN_GROUP_DETAILS).fetchSemanticsNode().boundsInRoot
+            composeRule
+                .onNodeWithTag(PerformanceTestTags.OPEN_GROUP_DETAILS)
+                .fetchSemanticsNode()
+                .boundsInRoot
         assertTrue(bounds.left >= header.left && bounds.right <= details.left)
         assertTrue(bounds.top >= header.top && bounds.bottom <= header.bottom)
         composeRule
