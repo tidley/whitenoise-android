@@ -29,6 +29,79 @@ import org.robolectric.shadows.ShadowLog
 @Config(sdk = [36])
 @Suppress("LargeClass")
 class ConversationDictationControllerTest {
+    /** The logged seven-chunk Send must recover the rejected final PCM before dispatching once. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun loggedFinalChunkRetriesWithPreviousRecognizedAudioBeforeSending() =
+        runTest {
+            val sent = mutableListOf<Triple<String, String, String>>()
+            val f =
+                fixture(
+                    draft = TextFieldValue(""),
+                    targetValidationScope = this,
+                    sendTranscriptIfOriginUnchanged = {
+                        it.beginDispatch().also { accepted ->
+                            if (accepted) {
+                                sent += Triple(it.accountRef, it.groupIdHex, it.payload)
+                                it.onPendingShown()
+                            }
+                        }
+                    },
+                )
+            val sizes = listOf(364_800, 320_000, 320_000, 320_000, 320_000, 377_600, 365_436)
+            val pcm = sizes.mapIndexed { index, size -> ByteArray(size) { (index + 1).toByte() } }
+            val buffer = ConversationDictationAudioChunkBuffer(1L)
+            pcm.forEach { samples ->
+                assertTrue(buffer.append(samples, samples.size, hasSpeech = true))
+                assertTrue(buffer.sealCurrentIfAtLeast(2))
+            }
+            buffer.finish()
+            f.platform.audioBuffer = buffer
+            f.platform.pendingCallerAudio = true
+            f.platform.useRealAudioSettlements = true
+            assertTrue(f.controller.requestStart(ACCOUNT, GROUP, TextFieldValue("")))
+            repeat(6) { index ->
+                assertArrayEquals(pcm[index], f.platform.session.callerAudioRequest()?.chunk?.pcm)
+                f.platform.listener.onResult("part ${index + 1}")
+                f.scheduler.runDelay(500L)
+            }
+            val rejected = requireNotNull(f.platform.session.callerAudioRequest())
+            assertEquals(1_011_200L, rejected.chunk.firstSample)
+            assertEquals(1_193_918L, rejected.chunk.lastSampleExclusive)
+            assertArrayEquals(pcm.last(), rejected.chunk.pcm)
+            f.controller.send()
+            advanceUntilIdle()
+            assertTrue(sent.isEmpty())
+            val staleListener = f.platform.listener
+            f.platform.listener.onError(ConversationDictationFailure.NoMatch)
+            assertTrue(f.controller.state is ConversationDictationState.Starting)
+            assertFalse(f.controller.foregroundMicrophoneRequired)
+            assertTrue(sent.isEmpty())
+            f.scheduler.runDelay(500L)
+            val replay = requireNotNull(f.platform.session.callerAudioRequest())
+            assertEquals(rejected.chunk.chunkId, replay.chunk.chunkId)
+            assertEquals(6L, replay.replacedSpanId)
+            assertArrayEquals(pcm[5], replay.replayParts.single().pcm)
+            assertArrayEquals(pcm[6], replay.chunk.pcm)
+            assertEquals(743_036, replay.pcmParts.sumOf { it.pcm.size })
+            assertEquals(743_036, buffer.bufferedBytes)
+            assertFalse(f.controller.foregroundMicrophoneRequired)
+            staleListener.onResult("late rejected-generation text")
+            advanceUntilIdle()
+            assertTrue(sent.isEmpty())
+            f.platform.listener.onResult("part 6 final words")
+            advanceUntilIdle()
+            val expected = Triple(ACCOUNT, GROUP, "part 1 part 2 part 3 part 4 part 5 part 6 final words")
+            assertEquals(listOf(expected), sent)
+            assertFalse(buffer.hasPending)
+            assertEquals(0, buffer.bufferedBytes)
+            assertTrue(f.controller.state is ConversationDictationState.Idle)
+            f.controller.send()
+            staleListener.onResult("late duplicate")
+            advanceUntilIdle()
+            assertEquals(listOf(expected), sent)
+        }
+
     /** The controller must replace the whole acknowledged span before sending at the original target. */
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
