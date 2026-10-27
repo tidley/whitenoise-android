@@ -1,0 +1,21 @@
+// Fork-only packaging; never change the normal Dev, staging or production identities.
+gradle.beforeProject { project ->
+    if (project.path != ':app') return
+    project.pluginManager.withPlugin('com.android.application') {
+        project.extensions.getByName('androidComponents').finalizeDsl { android ->
+            def source = System.getenv('FORK_SOURCE_SHA')
+            if (source == null || !(source ==~ /[0-9a-f]{40}/)) {
+                throw new GradleException('FORK_SOURCE_SHA must be an exact source commit')
+            }
+            def dev = android.productFlavors.getByName('dev')
+            dev.applicationIdSuffix = '.dev.fork'
+            dev.versionNameSuffix = "-dev-fork-${source.take(7)}"
+            dev.manifestPlaceholders['appName'] = 'White Noise Dev Test'
+            dev.manifestPlaceholders['deepLinkScheme'] = 'whitenoise-dev-fork'
+            dev.buildConfigField('String', 'WHITENOISE_DEEP_LINK_SCHEME', '"whitenoise-dev-fork"')
+            // No credentials reach Gradle; a separate job signs the unsigned APKs.
+            android.buildTypes.getByName('debug').signingConfig = null
+            android.packaging.jniLibs.useLegacyPackaging = true
+        }
+    }
+}

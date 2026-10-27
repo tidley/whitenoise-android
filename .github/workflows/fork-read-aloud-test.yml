@@ -1,0 +1,121 @@
+name: Fork Dev Test APK
+
+# Explicit human-test requests only. This fork-only workflow is not an upstream PR.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.repository == 'tidley/whitenoise-android' && github.ref == 'refs/heads/test/read-aloud-header-latest-upstream'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BASELINE_SOURCE: c5c5225ef6d430a9bcdc6fe7a185145f91a9b600
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Checkout pinned current-master baseline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: marmot-protocol/whitenoise-android
+          ref: ${{ env.BASELINE_SOURCE }}
+          path: smoke-baseline
+          persist-credentials: false
+      - name: Build unsigned candidate and compatible baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp app/src/main/marmotkit/MARMOT_VERSION smoke-baseline/app/src/main/marmotkit/MARMOT_VERSION
+          init="$GITHUB_WORKSPACE/scripts/fork-dev.init.gradle"
+          export WHITENOISE_MARMOTKIT_CACHE_DIR="$RUNNER_TEMP/marmotkit-cache"
+          for kind in candidate baseline; do
+            root="$GITHUB_WORKSPACE"
+            source="$GITHUB_SHA"
+            if [[ "$kind" == baseline ]]; then
+              root="$GITHUB_WORKSPACE/smoke-baseline"
+              source="$BASELINE_SOURCE"
+            fi
+            (cd "$root" && FORK_SOURCE_SHA="$source" PREVIEW_HEAD_SHA="$source" ./gradlew :app:assembleDevPlayDebug \
+              -Pandroid.injected.build.abi=arm64-v8a -Pandroid.injected.testOnly=false \
+              --no-daemon --stacktrace -I "$init")
+            mkdir -p "unsigned/$kind"
+            mapfile -t apks < <(find "$root/app/build/outputs/apk" "$root/app/build/intermediates/apk" \
+              -type f -name '*.apk' 2>/dev/null || true)
+            [[ ${#apks[@]} -eq 1 ]]
+            cp "${apks[0]}" "unsigned/$kind/whitenoise-dev-test.apk"
+            printf '%s\n' "$source" > "unsigned/$kind/SOURCE_COMMIT"
+            cp "$root/app/src/main/marmotkit/MARMOT_VERSION" "unsigned/$kind/MARMOT_VERSION"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: fork-dev-unsigned-pair
+          path: unsigned/
+          retention-days: 7
+          if-no-files-found: error
+
+  sign:
+    needs: build
+    if: github.repository == 'tidley/whitenoise-android' && github.ref == 'refs/heads/test/read-aloud-header-latest-upstream'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # No checkout and no Gradle or candidate scripts in this privileged job.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: fork-dev-unsigned-pair
+          path: unsigned
+      - name: Sign and verify isolated test APKs
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WHITENOISE_FORK_TEST_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.WHITENOISE_FORK_TEST_KEYSTORE_PASSWORD }}
+          EXPECTED_CERT: ${{ vars.WHITENOISE_FORK_TEST_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/fork-dev.p12"
+          trap 'rm -f "$key"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$key"
+          [[ "$EXPECTED_CERT" =~ ^[0-9a-f]{64}$ ]]
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          for kind in candidate baseline; do
+            mkdir -p "signed/$kind"
+            apk="signed/$kind/whitenoise-dev-test.apk"
+            "$tools/apksigner" sign --ks "$key" --ks-key-alias fork-dev \
+              --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEYSTORE_PASSWORD \
+              --out "$apk" "unsigned/$kind/whitenoise-dev-test.apk"
+            cert=$("$tools/apksigner" verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+            [[ "$cert" == "$EXPECTED_CERT" ]]
+            "$tools/aapt2" dump badging "$apk" > "signed/$kind/badging.txt"
+            grep -q "^package: name='dev.ipf.whitenoise.android.dev.fork' " "signed/$kind/badging.txt"
+            grep -q "^native-code: 'arm64-v8a'$" "signed/$kind/badging.txt"
+            if grep -q '^application-testOnly' "signed/$kind/badging.txt"; then
+              echo 'Refusing an ADB-only testOnly APK' >&2
+              exit 1
+            fi
+            source=$(cat "unsigned/$kind/SOURCE_COMMIT")
+            [[ "$source" =~ ^[0-9a-f]{40}$ ]]
+            grep -q -- "-dev-fork-${source:0:7}-debug" "signed/$kind/badging.txt"
+            cp "unsigned/$kind/"{SOURCE_COMMIT,MARMOT_VERSION} "signed/$kind/"
+            printf '%s\n' "$cert" > "signed/$kind/SIGNER_SHA256"
+            (cd "signed/$kind" && sha256sum whitenoise-dev-test.apk > SHA256SUMS)
+          done
+          [[ $(cat signed/candidate/SOURCE_COMMIT) == "$GITHUB_SHA" ]]
+          cmp signed/candidate/MARMOT_VERSION signed/baseline/MARMOT_VERSION
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: fork-dev-signed-pair
+          path: signed/
+          retention-days: 14
+          if-no-files-found: error
