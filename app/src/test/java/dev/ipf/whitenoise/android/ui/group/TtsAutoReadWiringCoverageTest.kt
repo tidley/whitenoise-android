@@ -6,6 +6,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
+private const val OPEN_AUTO_READ_EFFECT =
+    "LaunchedEffect(controller, chatId, transcriptReadyToReveal, " +
+        "autoReadEnabled, ttsHasUsableEngine)"
+
 class TtsAutoReadWiringCoverageTest {
     /** Text to speech screen wires global default to app state. */
     @Test
@@ -40,8 +44,7 @@ class TtsAutoReadWiringCoverageTest {
     @Test
     fun conversationTtsEffectsOpenIdleTriggerUsesRevealedBacklogAndAutoReadOwnership() {
         val body = source("ui/conversation/ConversationTtsEffects.kt")
-        val openEffectStart =
-            body.indexOf("LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled, ttsHasUsableEngine)")
+        val openEffectStart = body.indexOf(OPEN_AUTO_READ_EFFECT)
         val openEffectEnd = body.indexOf("// The process-owned continuation", openEffectStart)
         val openEffect = body.substring(openEffectStart, openEffectEnd)
 
@@ -120,7 +123,7 @@ class TtsAutoReadWiringCoverageTest {
         assertTrue(
             "open-time auto-read must restart only for a revealed transcript",
             effects
-                .split("LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled, ttsHasUsableEngine)")
+                .split(OPEN_AUTO_READ_EFFECT)
                 .size == 2,
         )
         assertTrue(
