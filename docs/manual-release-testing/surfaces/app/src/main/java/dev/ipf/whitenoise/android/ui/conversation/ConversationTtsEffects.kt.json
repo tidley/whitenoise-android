@@ -24,6 +24,22 @@
     ],
     "source_coverage": [
       {
+        "surface": "Idle open-conversation replies follow reactive foreground auto-read policy",
+        "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ConversationTtsEffects.kt",
+        "anchor": "LaunchedEffect(controller, chatId, transcriptReadyToReveal, autoReadEnabled, lifecycleOwner)",
+        "test_ids": [
+          "TTS-001"
+        ]
+      },
+      {
+        "surface": "Entry backlog retries after delayed engine discovery",
+        "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ConversationTtsEffects.kt",
+        "anchor": "val ttsHasUsableEngine = appState.ttsHasUsableEngine",
+        "test_ids": [
+          "TTS-001"
+        ]
+      },
+      {
         "surface": "Read-aloud offscreen recovery independent of follow ownership",
         "source": "app/src/main/java/dev/ipf/whitenoise/android/ui/conversation/ConversationTtsEffects.kt",
         "anchor": "sentenceLayouts.needsReveal(policy.currentTarget)",

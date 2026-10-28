@@ -166,6 +166,14 @@
     ],
     "source_coverage": [
       {
+        "surface": "Auto-read ownership ends with terminal playback",
+        "source": "app/src/main/java/dev/ipf/whitenoise/android/state/AppState.kt",
+        "anchor": "fun ownsTtsAutoReadSession(",
+        "test_ids": [
+          "TTS-001"
+        ]
+      },
+      {
         "surface": "Prepared attachment speech account-switch ownership",
         "source": "app/src/main/java/dev/ipf/whitenoise/android/state/AppState.kt",
         "anchor": "fun speakAloudPrepared(",

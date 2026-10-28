@@ -246,6 +246,7 @@ internal class FakeSessionEngine : TtsSpeechEngine {
 
     val spoken = CopyOnWriteArrayList<Spoken>()
     private var onDone: ((String?) -> Unit)? = null
+    private var onError: ((String?, Int) -> Unit)? = null
 
     override fun setLanguage(locale: Locale): Int = TextToSpeech.LANG_AVAILABLE
 
@@ -259,10 +260,12 @@ internal class FakeSessionEngine : TtsSpeechEngine {
         onStop: (String?, Boolean) -> Unit,
     ) {
         this.onDone = onDone
+        this.onError = onError
     }
 
     override fun clearCallbacks() {
         onDone = null
+        onError = null
     }
 
     override fun speak(
@@ -277,6 +280,10 @@ internal class FakeSessionEngine : TtsSpeechEngine {
 
     fun complete(index: Int) {
         onDone?.invoke(spoken[index].utteranceId)
+    }
+
+    fun fail(index: Int, errorCode: Int) {
+        onError?.invoke(spoken[index].utteranceId, errorCode)
     }
 }
 

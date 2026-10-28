@@ -1792,7 +1792,10 @@ class WhiteNoiseAppState private constructor(
 
     fun ownsTtsAutoReadSession(groupIdHex: String): Boolean {
         val key = ttsAutoReadSessionKey ?: return false
-        return key == ttsAutoReadKey(activeAccountRef, groupIdHex)
+        val state = ttsController.state.value
+        // Natural completion and engine errors can leave the last owner's key behind.
+        return key == ttsAutoReadKey(activeAccountRef, groupIdHex) &&
+            (state is TtsState.Speaking || state is TtsState.Paused || state is TtsState.Preparing)
     }
 
     private fun ttsAutoReadKey(
