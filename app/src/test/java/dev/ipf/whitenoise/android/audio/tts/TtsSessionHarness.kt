@@ -282,7 +282,10 @@ internal class FakeSessionEngine : TtsSpeechEngine {
         onDone?.invoke(spoken[index].utteranceId)
     }
 
-    fun fail(index: Int, errorCode: Int) {
+    fun fail(
+        index: Int,
+        errorCode: Int,
+    ) {
         onError?.invoke(spoken[index].utteranceId, errorCode)
     }
 }
