@@ -320,6 +320,7 @@ internal enum class MessageAttachmentSaveOutcome {
 /** Renders one message bubble and arbitrates its overlapping row-level interactions. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+@Suppress("UnusedParameter") // Preserve row/fixture call sites; the screen-owned host now supplies composer inputs.
 internal fun MessageBubble(
     item: TimelineMessage,
     controller: ConversationController,
@@ -499,6 +500,7 @@ internal fun MessageBubble(
     // Per-key state lives in three holders so the bubble stays within ART's compile limit (MessageBubbleState.kt).
     val pressState = remember(item.presentationId) { MessageBubblePressState() }
     val surfaces = remember(controller, item.presentationId) { MessageBubbleSurfaceState() }
+    val readerComposer = LocalConversationReaderComposer.current
     var explicitlyCollapsed by androidx.compose.runtime.saveable.rememberSaveable(
         controller.boundAccountRef,
         controller.group.groupIdHex,
@@ -956,6 +958,7 @@ internal fun MessageBubble(
             onActionMenuOpenChange(false)
             onTextSelectionModeChange(false)
             surfaces.emojiPickerOpen = false
+            readerComposer?.let { host -> host.session?.takeIf { it.owner === surfaces }?.let(host::detach) }
             surfaces.expandedFullView = false
             surfaces.infoSheetOpen = false
             surfaces.forwardSheetOpen = false
@@ -3022,10 +3025,19 @@ internal fun MessageBubble(
                         }
                     },
                 )
-                if (surfaces.expandedFullView && !deleted) {
+                if (surfaces.expandedFullView) {
                     val readerSession = surfaces.expandedFullViewSession
-                    ReaderSendDismissal(surfaces, onReaderSendAccepted)
-                    val readerComposer = LocalConversationReaderComposer.current
+                    val dismissReader: () -> Unit = {
+                        if (surfaces.expandedFullViewSession == readerSession) {
+                            val owned = readerComposer?.session?.takeIf { it.owner === surfaces }
+                            if (owned != null) owned.onDismiss() else surfaces.expandedFullView = false
+                        }
+                    }
+                    ReaderSendDismissal(surfaces, onReaderSendAccepted) {
+                        readerComposer?.let { host ->
+                            host.session?.takeIf { it.owner === surfaces }?.let(host::detach)
+                        }
+                    }
                     val canUseExpandedComposer = !deleted && !actionsReadOnly && composerGate == ComposerGate.COMPOSER
                     val expandedBody = bodyTextToRender ?: displayedBody
                     MessageFullScreenView(
@@ -3056,7 +3068,7 @@ internal fun MessageBubble(
                         },
                         onReact = {
                             if (canUseExpandedComposer) {
-                                surfaces.expandedFullView = false
+                                dismissReader()
                                 surfaces.emojiPickerOpen = true
                             }
                         },
@@ -3071,7 +3083,7 @@ internal fun MessageBubble(
                                 {
                                     onBeforeBodyCollapse()
                                     explicitlyCollapsed = true
-                                    surfaces.expandedFullView = false
+                                    dismissReader()
                                 }
                             },
                         onCopy = ::copyMessageText,
@@ -3080,17 +3092,20 @@ internal fun MessageBubble(
                             // delete surface (same handoff the reaction picker
                             // uses) so the sheet never renders behind the
                             // full-screen dialog window.
-                            surfaces.expandedFullView = false
+                            dismissReader()
                             requestDelete()
                         },
-                        onDismiss = { surfaces.expandedFullView = false },
+                        onDismiss = dismissReader,
                         bottomBar = {
                             if (!actionsReadOnly && readerComposer != null) {
                                 CompositionLocalProvider(LocalComposerSendMotion provides null) {
-                                    readerComposer.Reader(
-                                        onAfterSend = { surfaces.finishExpandedReaderSend(readerSession) },
-                                        onDismiss = { surfaces.expandedFullView = false },
-                                    )
+                                    key(readerSession) {
+                                        readerComposer.Reader(
+                                            owner = surfaces,
+                                            onAfterSend = { surfaces.finishExpandedReaderSend(readerSession) },
+                                            onDismiss = { surfaces.expandedFullView = false },
+                                        )
+                                    }
                                 }
                             }
                         },

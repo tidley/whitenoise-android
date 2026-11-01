@@ -14,6 +14,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -68,7 +69,7 @@ class ReaderComposerControlsScreenshotTest {
         val open = mutableStateOf(false)
         val dictation = ConversationDictationController(
             platform = Platform,
-            readDraft = { _, _ -> ConversationDictationDraftSnapshot(androidx.compose.ui.text.input.TextFieldValue(""), 0L) },
+            readDraft = { _, _ -> ConversationDictationDraftSnapshot(TextFieldValue(""), 0L) },
             writeDraft = { _, _, _, _ -> 0L },
             disclosureAccepted = { true },
             markDisclosureAccepted = {},
@@ -161,7 +162,9 @@ class ReaderComposerControlsScreenshotTest {
     private object Platform : ConversationDictationPlatform {
         override fun hasRecordAudioPermission() = true
         override fun recognitionAvailable() = true
-        override fun createSession(listener: ConversationDictationRecognitionListener): ConversationDictationRecognitionSession =
+        override fun createSession(
+            listener: ConversationDictationRecognitionListener,
+        ): ConversationDictationRecognitionSession =
             object : ConversationDictationRecognitionSession {
                 override fun start() = Unit
                 override fun stop() = Unit

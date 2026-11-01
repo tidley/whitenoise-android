@@ -24,7 +24,13 @@ internal val LocalConversationReaderComposer = staticCompositionLocalOf<Conversa
 /** One fully wired composer, moved into the reader without losing its editing or recording UI state. */
 @Suppress("FunctionNaming") // Compose entry points follow the surrounding UI naming convention.
 internal class ConversationReaderComposer {
-    internal class Session(val onAfterSend: () -> Unit, val onDismiss: () -> Unit)
+    internal class Session(
+        val onAfterSend: () -> Unit,
+        private val dismiss: (Session) -> Unit,
+        val owner: Any? = null,
+    ) {
+        fun onDismiss() = dismiss(this)
+    }
 
     var session by mutableStateOf<Session?>(null)
         private set
@@ -66,10 +72,22 @@ internal class ConversationReaderComposer {
     }
 
     @Composable
-    fun Reader(onAfterSend: () -> Unit, onDismiss: () -> Unit) {
+    fun Reader(onAfterSend: () -> Unit, onDismiss: () -> Unit, owner: Any = this) {
         val latestAfterSend by rememberUpdatedState(onAfterSend)
         val latestDismiss by rememberUpdatedState(onDismiss)
-        val reader = remember(this) { Session({ latestAfterSend() }, { latestDismiss() }) }
+        val reader = remember(this, owner) {
+            Session(
+                onAfterSend = { latestAfterSend() },
+                dismiss = { owned ->
+                    if (session === owned) {
+                        // Transfer before removing the dialog, not in its later disposal frame.
+                        detach(owned)
+                        latestDismiss()
+                    }
+                },
+                owner = owner,
+            )
+        }
         DisposableEffect(this, reader) {
             attach(reader)
             onDispose { detach(reader) }

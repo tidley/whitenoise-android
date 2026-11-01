@@ -86,7 +86,7 @@ class LongMessageFullScreenComposerCoverageTest {
                 "composerGate == ComposerGate.COMPOSER"
         assertTrue(
             "expanded reader reply/react actions must require a live message and an active shared composer",
-            "if (surfaces.expandedFullView && !deleted)" in body &&
+                "if (surfaces.expandedFullView)" in body &&
                 expandedComposerGate in body &&
                 "canReply = canUseExpandedComposer" in fullScreenCall &&
                 "canReact = canUseExpandedComposer" in fullScreenCall,
@@ -113,6 +113,7 @@ class LongMessageFullScreenComposerCoverageTest {
         assertTrue(
             "the reader composer must mark its own session when a send is accepted",
             "val readerSession = surfaces.expandedFullViewSession" in body &&
+                "key(readerSession)" in fullScreenCall &&
                 "onAfterSend = { surfaces.finishExpandedReaderSend(readerSession) }" in fullScreenCall,
         )
         assertTrue(

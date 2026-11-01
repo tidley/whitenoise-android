@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertCountEquals
@@ -58,13 +59,26 @@ class ConversationReaderComposerTest {
 
     @Test
     fun movingIntoAndOutOfADialogKeepsExactlyOneComposerAndItsRememberedState() {
+        readerRoundTrip(forcedClose = false)
+    }
+
+    @Test
+    fun externallyDeletedReaderReturnsItsComposerBeforeRemovingTheDialog() {
+        readerRoundTrip(forcedClose = true)
+    }
+
+    private fun readerRoundTrip(forcedClose: Boolean) {
         val host = ConversationReaderComposer()
         val open = mutableStateOf(false)
+        val deleted = mutableStateOf(false)
         var remembered: Any? = null
         var disposals = 0
         composeRule.setContent {
             WhiteNoiseTheme {
                 Column {
+                    LaunchedEffect(deleted.value) {
+                        if (deleted.value) host.session?.onDismiss()
+                    }
                     host.Host {
                         val identity = remember { Any() }
                         remembered = identity
@@ -87,7 +101,9 @@ class ConversationReaderComposerTest {
             assertSame(original, remembered)
             assertEquals(0, disposals)
         }
-        composeRule.runOnIdle { open.value = false }
+        composeRule.runOnIdle {
+            if (forcedClose) deleted.value = true else requireNotNull(host.session).onDismiss()
+        }
         composeRule.onAllNodesWithText("Full composer").assertCountEquals(1)
         composeRule.runOnIdle {
             assertSame(original, remembered)

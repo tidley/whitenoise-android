@@ -4103,7 +4103,7 @@ internal fun ConversationScreen(
                                     prepared = mediaDraftState.preparedPreviews(),
                                     onPreview = {
                                         if (!attachmentSendClaim.isHeld) {
-                                            readerComposer.session?.onDismiss?.invoke()
+                                            readerComposer.session?.onDismiss()
                                             mediaPreviewIndex = it
                                         }
                                     },

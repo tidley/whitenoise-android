@@ -122,7 +122,7 @@ internal fun ConversationBottomBar(
 ) {
     val readerSession = readerComposer.session
     fun handoff(action: () -> Unit) {
-        readerSession?.onDismiss?.invoke()
+        readerSession?.onDismiss()
         action()
     }
     val renderedInviteGroupIdHex = controller.group.groupIdHex
