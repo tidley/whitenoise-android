@@ -28,7 +28,11 @@ internal fun advanceConversationAutoReadCursor(
     val tail = conversationAutoReadCursor(timeline)
     // Native rows can have zero optimistic order; a loaded anchor still proves list-relative progress.
     val anchorLoaded = timeline.any { it.id == cursor.timelineItemId }
-    return if (cursor.timelineItemId == null || anchorLoaded || tail.timelineOrder > cursor.timelineOrder) tail else cursor
+    return if (cursor.timelineItemId == null || anchorLoaded || tail.timelineOrder > cursor.timelineOrder) {
+        tail
+    } else {
+        cursor
+    }
 }
 
 /**
