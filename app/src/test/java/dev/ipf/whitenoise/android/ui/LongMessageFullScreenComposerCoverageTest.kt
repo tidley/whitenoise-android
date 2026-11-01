@@ -9,6 +9,27 @@ import java.io.File
 
 class LongMessageFullScreenComposerCoverageTest {
     @Test
+    fun readerMovesTheFullyWiredComposerInsteadOfCreatingAPartialCopy() {
+        val bubble = messageBubbleSource().readText().functionBody("MessageBubble")
+        val reader = bubble.substringAfter("MessageFullScreenView(").substringBefore("if (surfaces.emojiPickerOpen")
+        assertFalse("The reader must not construct a second partially wired ComposerBar", "ComposerBar(" in reader)
+        assertTrue("The reader must use the screen-owned composer host", "readerComposer.Reader(" in reader)
+        val bottomBar = conversationSource("ConversationBottomBar.kt").readText()
+        assertTrue("The normal composer must move into the reader", "readerComposer.Host(" in bottomBar)
+        assertTrue(
+            "Opening Read More from search or selection must still expose its composer and Reply",
+            "searchOpen && readerSession == null" in bottomBar && "selectionMode && readerSession == null" in bottomBar,
+        )
+        listOf(
+            "onSendAttachments", "onPickFromGallery", "onCaptureFromCamera", "onPickDocument",
+            "onShareLocation", "onShareUser", "onShareContact", "onCreatePoll", "onPasteImageUris",
+            "voiceRecordingController", "voiceReview", "dictationController",
+        ).forEach { capability ->
+            assertTrue("Shared composer must retain $capability", "$capability =" in bottomBar)
+        }
+    }
+
+    @Test
     fun fullScreenLongMessageReaderReservesComposerSlot() {
         val body = messageFullScreenSource().readText().functionBody("MessageFullScreenView")
 
@@ -44,18 +65,21 @@ class LongMessageFullScreenComposerCoverageTest {
             "timeText = rememberedMessageBubbleTime(record.recordedAt)" in fullScreenCall,
         )
         assertTrue(
-            "expanded long-message view must render the standard ComposerBar, not a separate ad-hoc input",
-            "ComposerBar(" in fullScreenCall,
+            "expanded long-message view must move the fully wired conversation composer",
+            "readerComposer.Reader(" in fullScreenCall,
         )
         assertTrue(
             "expanded long-message view must render through the same ComposerGate states as the normal conversation bottom bar",
-            "when (composerGate)" in fullScreenCall &&
-                "ComposerGate.PENDING" in fullScreenCall &&
-                "ComposerGate.NOTICE" in fullScreenCall &&
-                "ComposerGate.INVITE" in fullScreenCall &&
-                "ComposerGate.COMPOSER" in fullScreenCall &&
-                "RemovedMemberComposerNotice()" in fullScreenCall &&
-                "InvitationActions(" in fullScreenCall,
+            conversationSource("ConversationBottomBar.kt").readText().let { shared ->
+                "readerComposer.Host(" in shared &&
+                    "when (composerGate)" in shared &&
+                    "ComposerGate.PENDING" in shared &&
+                    "ComposerGate.NOTICE" in shared &&
+                    "ComposerGate.INVITE" in shared &&
+                    "ComposerGate.COMPOSER" in shared &&
+                    "RemovedMemberComposerNotice()" in shared &&
+                    "InvitationActions(" in shared
+            },
         )
         val expandedComposerGate =
             "val canUseExpandedComposer = !deleted && !actionsReadOnly && " +
@@ -159,7 +183,7 @@ class LongMessageFullScreenComposerCoverageTest {
         assertTrue("Reader must provide a null motion owner", "LocalComposerSendMotion provides null" in parameters)
         val isolated =
             reader.kotlinBlockFrom(parametersStart + parameters.length, "isolated reader body", searchForOpening = true)
-        assertTrue("Reader composer must be inside its isolated local", "ComposerBar(" in isolated)
+        assertTrue("Reader composer must be inside its isolated local", "readerComposer.Reader(" in isolated)
         assertFalse("Reader disposal must not clear the conversation flight", "composerSendMotion.clear()" in reader)
         assertFalse("Reader disposal must not retire the conversation owner", "composerSendMotion.dispose()" in reader)
     }

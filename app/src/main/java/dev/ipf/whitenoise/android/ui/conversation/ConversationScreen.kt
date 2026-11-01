@@ -3857,6 +3857,7 @@ internal fun ConversationScreen(
                 forwardPayloads = batchSelectionUi.forwardPayloads,
             )
     }
+    val readerComposer = remember(conversationAccountRef, controller.group.groupIdHex) { ConversationReaderComposer() }
     ComposerSendMotionMediaGate(composerSendMotion, mediaViewerSessionState, sendMotionEnabled)
     ComposerSendMotionHost(composerSendMotion, surfaceMotionEnabled) {
         WhiteNoiseScaffold(
@@ -3962,6 +3963,7 @@ internal fun ConversationScreen(
             },
             bottomBar = {
                 ConversationBottomBar(
+                    readerComposer = readerComposer,
                     compactHeight = compactHeightConversation,
                     dictationControlsVisible = dictationControlsVisible,
                     selectionMode = selectionMode,
@@ -4099,7 +4101,12 @@ internal fun ConversationScreen(
                                     documentUris = pendingDocumentUris,
                                     enabled = !attachmentSendClaim.isHeld,
                                     prepared = mediaDraftState.preparedPreviews(),
-                                    onPreview = { if (!attachmentSendClaim.isHeld) mediaPreviewIndex = it },
+                                    onPreview = {
+                                        if (!attachmentSendClaim.isHeld) {
+                                            readerComposer.session?.onDismiss?.invoke()
+                                            mediaPreviewIndex = it
+                                        }
+                                    },
                                     onRemoveMedia = { slot ->
                                         if (!attachmentSendClaim.isHeld) {
                                             mediaDraftState.releasePreparedPhoto(slot.id)
@@ -4237,6 +4244,7 @@ internal fun ConversationScreen(
             },
         ) { padding ->
             CompositionLocalProvider(
+                LocalConversationReaderComposer provides readerComposer,
                 dev.ipf.whitenoise.android.translation.LocalConversationTranslation provides translationSession,
                 dev.ipf.whitenoise.android.translation.LocalTranslationPreferences provides translationPreferences,
                 LocalPollVotesHost provides pollVotesHost,

@@ -15,9 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -67,7 +64,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.LayoutDirection
@@ -110,7 +106,6 @@ import dev.ipf.whitenoise.android.state.WhiteNoiseAppState
 import dev.ipf.whitenoise.android.state.authoritativeEditHistory
 import dev.ipf.whitenoise.android.state.canReportMessage
 import dev.ipf.whitenoise.android.state.dismissReports
-import dev.ipf.whitenoise.android.state.mediaReferencesFor
 import dev.ipf.whitenoise.android.state.parseMarkdownOrEmpty
 import dev.ipf.whitenoise.android.state.reportMessage
 import dev.ipf.whitenoise.android.state.reportsFor
@@ -131,23 +126,16 @@ import dev.ipf.whitenoise.android.ui.conversation.ConversationTtsFollowTarget
 import dev.ipf.whitenoise.android.ui.conversation.ConversationTtsSentenceLayoutReport
 import dev.ipf.whitenoise.android.ui.conversation.ConversationTtsSentenceLayoutSink
 import dev.ipf.whitenoise.android.ui.conversation.ConversationUiTrace
-import dev.ipf.whitenoise.android.ui.conversation.InvitationActions
-import dev.ipf.whitenoise.android.ui.conversation.InviteAcceptanceResolutionStatus
 import dev.ipf.whitenoise.android.ui.conversation.LocalComposerSendMotion
+import dev.ipf.whitenoise.android.ui.conversation.LocalConversationReaderComposer
 import dev.ipf.whitenoise.android.ui.conversation.LocalPollVotesHost
 import dev.ipf.whitenoise.android.ui.conversation.PollCard
 import dev.ipf.whitenoise.android.ui.conversation.PollMessageActionOwner
 import dev.ipf.whitenoise.android.ui.conversation.PollMessageContent
-import dev.ipf.whitenoise.android.ui.conversation.composer.BlockedDmComposerNotice
-import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerBar
 import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerGate
 import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerTextState
-import dev.ipf.whitenoise.android.ui.conversation.composer.DisbandedGroupComposerNotice
 import dev.ipf.whitenoise.android.ui.conversation.composer.EmojiPickerPurpose
 import dev.ipf.whitenoise.android.ui.conversation.composer.EmojiPickerSheet
-import dev.ipf.whitenoise.android.ui.conversation.composer.FrozenGroupComposerNotice
-import dev.ipf.whitenoise.android.ui.conversation.composer.RemovedMemberComposerNotice
-import dev.ipf.whitenoise.android.ui.conversation.composer.composerDraftOwnerKey
 import dev.ipf.whitenoise.android.ui.conversation.currentPollActionTarget
 import dev.ipf.whitenoise.android.ui.conversation.currentPollCopyText
 import dev.ipf.whitenoise.android.ui.conversation.media.ConversationMediaViewerOpenRequest
@@ -3037,11 +3025,7 @@ internal fun MessageBubble(
                 if (surfaces.expandedFullView && !deleted) {
                     val readerSession = surfaces.expandedFullViewSession
                     ReaderSendDismissal(surfaces, onReaderSendAccepted)
-                    val groupIdHex = controller.group.groupIdHex
-                    val editingRecord =
-                        controller.editingMessageId?.let { id ->
-                            controller.timeline.firstOrNull { it.record.messageIdHex == id }?.record
-                        }
+                    val readerComposer = LocalConversationReaderComposer.current
                     val canUseExpandedComposer = !deleted && !actionsReadOnly && composerGate == ComposerGate.COMPOSER
                     val expandedBody = bodyTextToRender ?: displayedBody
                     MessageFullScreenView(
@@ -3101,99 +3085,13 @@ internal fun MessageBubble(
                         },
                         onDismiss = { surfaces.expandedFullView = false },
                         bottomBar = {
-                            when (composerGate) {
-                                ComposerGate.PENDING ->
-                                    if (controller.inviteAcceptanceResolutionPending) {
-                                        InviteAcceptanceResolutionStatus(
-                                            state = controller.inviteAcceptanceResolutionState,
-                                            onRetry = {
-                                                appState.launchMutation {
-                                                    controller.retryInviteAcceptanceAuthority()
-                                                }
-                                            },
-                                        )
-                                    } else {
-                                        Spacer(
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .navigationBarsPadding()
-                                                .imePadding()
-                                                .height(64.dp),
-                                        )
-                                    }
-                                ComposerGate.NOTICE -> RemovedMemberComposerNotice()
-                                ComposerGate.BLOCKED ->
-                                    BlockedDmComposerNotice(
-                                        unblockInFlight = blockedDmUnblockInFlight,
-                                        onUnblock = onUnblockBlockedDm,
+                            if (!actionsReadOnly && readerComposer != null) {
+                                CompositionLocalProvider(LocalComposerSendMotion provides null) {
+                                    readerComposer.Reader(
+                                        onAfterSend = { surfaces.finishExpandedReaderSend(readerSession) },
+                                        onDismiss = { surfaces.expandedFullView = false },
                                     )
-                                ComposerGate.FROZEN -> FrozenGroupComposerNotice()
-                                ComposerGate.DISBANDED -> DisbandedGroupComposerNotice(disbanded = groupDisbanded)
-                                ComposerGate.INVITE ->
-                                    InvitationActions(
-                                        inviterName = controller.inviteAccount?.let { appState.chatMemberTitle(it) },
-                                        mutationInFlight = inviteMutationInFlight,
-                                        onAccept = onJoinInvite,
-                                        onDecline = onDeclineInvite,
-                                    )
-                                ComposerGate.COMPOSER ->
-                                    if (!actionsReadOnly) {
-                                        CompositionLocalProvider(
-                                            LocalComposerSendMotion provides null,
-                                        ) {
-                                            ComposerBar(
-                                                replyingToEmoji =
-                                                    rememberReplyReceivedEmoji(
-                                                        controller.replyingTo?.messageIdHex,
-                                                        controller,
-                                                        appState,
-                                                    ),
-                                                replyingTo = controller.replyingTo,
-                                                replyingToMedia =
-                                                    controller.replyingTo
-                                                        ?.let(controller::mediaReferencesFor)
-                                                        .orEmpty(),
-                                                replyingToDisplay =
-                                                    controller.replyingTo
-                                                        ?.let { controller.replyTargetPreview(it, messageTextCopy) },
-                                                messageTextCopy = messageTextCopy,
-                                                onCancelReply = { controller.replyingTo = null },
-                                                onSend = { text, onAccepted ->
-                                                    appState.launchMutation {
-                                                        appState.sendConversationText(
-                                                            controller,
-                                                            text,
-                                                            onAccepted = onAccepted,
-                                                        )
-                                                    }
-                                                },
-                                                initialDraft =
-                                                    appState
-                                                        .draftSnapshotFor(controller.boundAccountRef, groupIdHex)
-                                                        ?.textFieldValue
-                                                        ?: TextFieldValue(""),
-                                                onDraftChange = {
-                                                    appState.setDraft(controller.boundAccountRef, groupIdHex, it)
-                                                },
-                                                draftKey =
-                                                    composerDraftOwnerKey(controller.boundAccountRef, groupIdHex),
-                                                draftAccountRef = controller.boundAccountRef,
-                                                draftGroupIdHex = groupIdHex,
-                                                textState = composerTextState,
-                                                editingMessageId = controller.editingMessageId,
-                                                editingInitialText =
-                                                    editingRecord?.let { controller.displayedText(it) },
-                                                onCancelEdit = controller::cancelMessageEdit,
-                                                appState = appState,
-                                                mentionCandidates = mentionCandidates,
-                                                mentionPickerEnabled = mentionPickerEnabled,
-                                                enterKeyBehavior = appState.enterKeyBehavior,
-                                                recentEmojis = recentEmojis,
-                                                onEmojiUsed = onEmojiUsed,
-                                                onAfterSend = { surfaces.finishExpandedReaderSend(readerSession) },
-                                            )
-                                        }
-                                    }
+                                }
                             }
                         },
                     )
