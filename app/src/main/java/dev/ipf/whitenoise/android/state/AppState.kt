@@ -2001,6 +2001,10 @@ class WhiteNoiseAppState private constructor(
         reconcileOwnedTtsAutoReadSession()
     }
 
+    fun setTtsComposerShortcutVisible(visible: Boolean) {
+        ttsAutoReadPreferences.setComposerShortcutVisible(visible)
+    }
+
     fun setConversationAutoReadOverride(
         groupIdHex: String,
         override: TtsAutoReadOverride?,
