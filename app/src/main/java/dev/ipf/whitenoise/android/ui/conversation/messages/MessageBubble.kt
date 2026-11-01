@@ -320,7 +320,6 @@ internal enum class MessageAttachmentSaveOutcome {
 /** Renders one message bubble and arbitrates its overlapping row-level interactions. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-@Suppress("UnusedParameter") // Preserve row/fixture call sites; the screen-owned host now supplies composer inputs.
 internal fun MessageBubble(
     item: TimelineMessage,
     controller: ConversationController,
@@ -328,8 +327,8 @@ internal fun MessageBubble(
     onOpenConversationMedia: (ConversationMediaViewerOpenRequest) -> Unit = {},
     eventCardResolver: NostrEventCardResolver? = null,
     documentSaveFallback: DocumentSaveFallback? = null,
-    // #1206: shared composer text state so the full-screen reader's composer
-    // stays in sync with the main composer instead of holding a divergent field.
+    // Keep named row/fixture inputs compatible; the reader host now owns composer configuration.
+    @Suppress("UnusedParameter")
     composerTextState: ComposerTextState,
     highlighted: Boolean,
     selectionMode: Boolean,
@@ -352,13 +351,21 @@ internal fun MessageBubble(
     onQuickReactionsSave: (List<String>) -> Unit,
     onReplyPreviewClick: (TimelineMessage) -> Unit,
     composerGate: ComposerGate,
+    @Suppress("UnusedParameter")
     blockedDmUnblockInFlight: Boolean = false,
+    @Suppress("UnusedParameter")
     onUnblockBlockedDm: () -> Unit = {},
+    @Suppress("UnusedParameter")
     groupDisbanded: Boolean = false,
+    @Suppress("UnusedParameter")
     inviteMutationInFlight: Boolean,
+    @Suppress("UnusedParameter")
     onJoinInvite: () -> Unit,
+    @Suppress("UnusedParameter")
     onDeclineInvite: () -> Unit,
+    @Suppress("UnusedParameter")
     mentionCandidates: List<MentionComposer.Candidate>,
+    @Suppress("UnusedParameter")
     mentionPickerEnabled: Boolean,
     // The conversation's accepted-send reveal, run after a send from the Read more reader closes it (#3268).
     onReaderSendAccepted: () -> Unit = {},
