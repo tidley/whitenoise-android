@@ -46,16 +46,20 @@ internal class ConversationReaderComposer {
     }
 
     @Composable
-    fun Host(modifier: Modifier = Modifier, body: @Composable () -> Unit) {
+    fun Host(
+        modifier: Modifier = Modifier,
+        body: @Composable () -> Unit,
+    ) {
         val latestBody by rememberUpdatedState(body)
         val motion by rememberUpdatedState(LocalComposerSendMotion.current)
-        val movable = remember(this) {
-            movableContentOf {
-                CompositionLocalProvider(LocalComposerSendMotion provides motion.takeIf { session == null }) {
-                    latestBody()
+        val movable =
+            remember(this) {
+                movableContentOf {
+                    CompositionLocalProvider(LocalComposerSendMotion provides motion.takeIf { session == null }) {
+                        latestBody()
+                    }
                 }
             }
-        }
         SideEffect { content = movable }
         var restingHeight by remember { mutableStateOf(0.dp) }
         val density = LocalDensity.current
@@ -72,22 +76,27 @@ internal class ConversationReaderComposer {
     }
 
     @Composable
-    fun Reader(onAfterSend: () -> Unit, onDismiss: () -> Unit, owner: Any = this) {
+    fun Reader(
+        onAfterSend: () -> Unit,
+        onDismiss: () -> Unit,
+        owner: Any = this,
+    ) {
         val latestAfterSend by rememberUpdatedState(onAfterSend)
         val latestDismiss by rememberUpdatedState(onDismiss)
-        val reader = remember(this, owner) {
-            Session(
-                onAfterSend = { latestAfterSend() },
-                dismiss = { owned ->
-                    if (session === owned) {
-                        // Transfer before removing the dialog, not in its later disposal frame.
-                        detach(owned)
-                        latestDismiss()
-                    }
-                },
-                owner = owner,
-            )
-        }
+        val reader =
+            remember(this, owner) {
+                Session(
+                    onAfterSend = { latestAfterSend() },
+                    dismiss = { owned ->
+                        if (session === owned) {
+                            // Transfer before removing the dialog, not in its later disposal frame.
+                            detach(owned)
+                            latestDismiss()
+                        }
+                    },
+                    owner = owner,
+                )
+            }
         DisposableEffect(this, reader) {
             attach(reader)
             onDispose { detach(reader) }

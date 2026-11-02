@@ -121,6 +121,7 @@ internal fun ConversationBottomBar(
     onTimelineComposerMeasured: (foregroundHeightPx: Int, compactHeightPx: Int) -> Unit = { _, _ -> },
 ) {
     val readerSession = readerComposer.session
+
     fun handoff(action: () -> Unit) {
         readerSession?.onDismiss()
         action()
@@ -318,6 +319,6 @@ internal fun ConversationBottomBar(
                         )
                     }
                 }
+        }
     }
-}
 }
