@@ -44,6 +44,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
+private typealias ReaderDictationListener = ConversationDictationRecognitionListener
+
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [36], qualifiers = "w360dp-h780dp-mdpi")
@@ -64,25 +66,31 @@ class ReaderComposerControlsScreenshotTest {
 
     @Test fun largeRtlReaderControls() = capture("reader_composer_controls_large_rtl", rtl = true)
 
-    private fun capture(name: String, dark: Boolean = false, rtl: Boolean = false) {
+    private fun capture(
+        name: String,
+        dark: Boolean = false,
+        rtl: Boolean = false,
+    ) {
         val host = ConversationReaderComposer()
         val open = mutableStateOf(false)
-        val dictation = ConversationDictationController(
-            platform = Platform,
-            readDraft = { _, _ -> ConversationDictationDraftSnapshot(TextFieldValue(""), 0L) },
-            writeDraft = { _, _, _, _ -> 0L },
-            disclosureAccepted = { true },
-            markDisclosureAccepted = {},
-        )
+        val dictation =
+            ConversationDictationController(
+                platform = Platform,
+                readDraft = { _, _ -> ConversationDictationDraftSnapshot(TextFieldValue(""), 0L) },
+                writeDraft = { _, _, _, _ -> 0L },
+                disclosureAccepted = { true },
+                markDisclosureAccepted = {},
+            )
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-        recorder = VoiceRecordingController(
-            context = context,
-            outputDirectory = context.cacheDir,
-            scope = scope,
-            onPermissionRequest = { true },
-            onRecordingComplete = { _, _ -> },
-            onError = {},
-        )
+        recorder =
+            VoiceRecordingController(
+                context = context,
+                outputDirectory = context.cacheDir,
+                scope = scope,
+                onPermissionRequest = { true },
+                onRecordingComplete = { _, _ -> },
+                onError = {},
+            )
         composeRule.setContent {
             CompositionLocalProvider(
                 LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
@@ -134,7 +142,10 @@ class ReaderComposerControlsScreenshotTest {
     }
 
     @Composable
-    private fun Reader(host: ConversationReaderComposer, open: MutableState<Boolean>) {
+    private fun Reader(
+        host: ConversationReaderComposer,
+        open: MutableState<Boolean>,
+    ) {
         MessageFullScreenView(
             senderDisplayName = "Alice",
             senderSeed = "alice",
@@ -161,14 +172,17 @@ class ReaderComposerControlsScreenshotTest {
 
     private object Platform : ConversationDictationPlatform {
         override fun hasRecordAudioPermission() = true
+
         override fun recognitionAvailable() = true
-        override fun createSession(
-            listener: ConversationDictationRecognitionListener,
-        ): ConversationDictationRecognitionSession =
+
+        override fun createSession(listener: ReaderDictationListener): ConversationDictationRecognitionSession =
             object : ConversationDictationRecognitionSession {
                 override fun start() = Unit
+
                 override fun stop() = Unit
+
                 override fun cancel() = Unit
+
                 override fun destroy() = Unit
             }
     }

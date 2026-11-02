@@ -21,9 +21,18 @@ class LongMessageFullScreenComposerCoverageTest {
             "searchOpen && readerSession == null" in bottomBar && "selectionMode && readerSession == null" in bottomBar,
         )
         listOf(
-            "onSendAttachments", "onPickFromGallery", "onCaptureFromCamera", "onPickDocument",
-            "onShareLocation", "onShareUser", "onShareContact", "onCreatePoll", "onPasteImageUris",
-            "voiceRecordingController", "voiceReview", "dictationController",
+            "onSendAttachments",
+            "onPickFromGallery",
+            "onCaptureFromCamera",
+            "onPickDocument",
+            "onShareLocation",
+            "onShareUser",
+            "onShareContact",
+            "onCreatePoll",
+            "onPasteImageUris",
+            "voiceRecordingController",
+            "voiceReview",
+            "dictationController",
         ).forEach { capability ->
             assertTrue("Shared composer must retain $capability", "$capability =" in bottomBar)
         }
@@ -86,7 +95,7 @@ class LongMessageFullScreenComposerCoverageTest {
                 "composerGate == ComposerGate.COMPOSER"
         assertTrue(
             "expanded reader reply/react actions must require a live message and an active shared composer",
-                "if (surfaces.expandedFullView)" in body &&
+            "if (surfaces.expandedFullView)" in body &&
                 expandedComposerGate in body &&
                 "canReply = canUseExpandedComposer" in fullScreenCall &&
                 "canReact = canUseExpandedComposer" in fullScreenCall,
