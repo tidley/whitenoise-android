@@ -5,17 +5,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import dev.ipf.whitenoise.android.audio.ConversationDictationController
@@ -29,13 +36,17 @@ import dev.ipf.whitenoise.android.core.MessageTextCopy
 import dev.ipf.whitenoise.android.state.MessageStatus
 import dev.ipf.whitenoise.android.ui.conversation.composer.ComposerBar
 import dev.ipf.whitenoise.android.ui.conversation.messages.MESSAGE_FULL_SCREEN_TAG
+import dev.ipf.whitenoise.android.ui.conversation.messages.MessageBubbleSurfaceState
 import dev.ipf.whitenoise.android.ui.conversation.messages.MessageFullScreenView
+import dev.ipf.whitenoise.android.ui.conversation.messages.ReaderSendDismissal
 import dev.ipf.whitenoise.android.ui.theme.WhiteNoiseTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -53,6 +64,12 @@ class ReaderComposerControlsScreenshotTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     private var recorder: VoiceRecordingController? = null
+    private val host = ConversationReaderComposer()
+    private val readerState = MessageBubbleSurfaceState()
+    private val pendingSendRevision = mutableIntStateOf(0)
+    private var readerView: android.view.View? = null
+    private var composerIdentity: Any? = null
+    private var reveals = 0
 
     @After
     fun releaseRecorder() {
@@ -66,13 +83,18 @@ class ReaderComposerControlsScreenshotTest {
 
     @Test fun largeRtlReaderControls() = capture("reader_composer_controls_large_rtl", rtl = true)
 
+    @Test fun dictatedSendReturnsWithoutKeyboardGapLight() =
+        capture("reader_dictation_return_no_keyboard_gap_light", finishSend = true)
+
+    @Test fun dictatedSendReturnsWithoutKeyboardGapDark() =
+        capture("reader_dictation_return_no_keyboard_gap_dark", dark = true, finishSend = true)
+
     private fun capture(
         name: String,
         dark: Boolean = false,
         rtl: Boolean = false,
+        finishSend: Boolean = false,
     ) {
-        val host = ConversationReaderComposer()
-        val open = mutableStateOf(false)
         val dictation =
             ConversationDictationController(
                 platform = Platform,
@@ -80,6 +102,15 @@ class ReaderComposerControlsScreenshotTest {
                 writeDraft = { _, _, _, _ -> 0L },
                 disclosureAccepted = { true },
                 markDisclosureAccepted = {},
+                targetValidationScope = scope,
+                sendTranscriptIfOriginUnchanged = { request ->
+                    request.beginDispatch().also { claimed ->
+                        if (claimed) {
+                            request.onPendingShown()
+                            pendingSendRevision.intValue += 1
+                        }
+                    }
+                },
             )
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         recorder =
@@ -91,32 +122,93 @@ class ReaderComposerControlsScreenshotTest {
                 onRecordingComplete = { _, _ -> },
                 onError = {},
             )
+        render(dictation, dark, rtl)
+        val restingBounds = composeRule.onNodeWithTag("reader-composer-host").getUnclippedBoundsInRoot()
+        val restingHeight = (restingBounds.bottom - restingBounds.top).value
+        val identity = composeRule.runOnIdle { composerIdentity }
+        composeRule.runOnIdle { readerState.openExpandedFullView() }
+        composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Hold to record voice message").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Add attachment").assertIsDisplayed()
+        if (!finishSend) {
+            composeRule.onNodeWithTag(MESSAGE_FULL_SCREEN_TAG).captureRoboImage("src/test/snapshots/$name.png")
+        }
+        composeRule.onNodeWithContentDescription("Dictate text").performClick()
+        composeRule.runOnIdle { assertTrue(dictation.state is ConversationDictationState.Starting) }
+        composeRule.onNodeWithContentDescription("Hold to record voice message").assertDoesNotExist()
+        if (finishSend) {
+            finishDictationSend(name, identity, restingHeight)
+        } else {
+            composeRule.onNodeWithContentDescription("Cancel").assertIsDisplayed().performClick()
+            composeRule.runOnIdle { assertTrue(dictation.state is ConversationDictationState.Idle) }
+        }
+    }
+
+    private fun render(
+        dictation: ConversationDictationController,
+        dark: Boolean,
+        rtl: Boolean,
+    ) {
         composeRule.setContent {
             CompositionLocalProvider(
                 LocalLayoutDirection provides if (rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
             ) {
                 WhiteNoiseTheme(darkTheme = dark, fontScale = if (rtl) 2f else 1f) {
                     Column {
-                        host.Host {
+                        LaunchedEffect(pendingSendRevision.intValue) {
+                            if (pendingSendRevision.intValue > 0 && !host.onDictationSendAccepted()) {
+                                reveals++
+                                readerState.expandedFullView = false
+                            }
+                        }
+                        host.Host(Modifier.testTag("reader-composer-host")) {
+                            composerIdentity = remember { Any() }
                             Composer(dictation)
                         }
-                        if (open.value) {
-                            Reader(host, open)
+                        if (readerState.expandedFullView) {
+                            ReaderSendDismissal(readerState, { reveals++ }) {
+                                host.session?.let(host::detach)
+                            }
+                            Reader()
                         }
                     }
                 }
             }
         }
-        composeRule.runOnIdle { open.value = true }
-        composeRule.onNodeWithContentDescription("Dictate text").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Hold to record voice message").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Add attachment").assertIsDisplayed()
-        composeRule.onNodeWithTag(MESSAGE_FULL_SCREEN_TAG).captureRoboImage("src/test/snapshots/$name.png")
-        composeRule.onNodeWithContentDescription("Dictate text").performClick()
-        composeRule.runOnIdle { assertTrue(dictation.state is ConversationDictationState.Starting) }
-        composeRule.onNodeWithContentDescription("Hold to record voice message").assertDoesNotExist()
-        composeRule.onNodeWithContentDescription("Cancel").assertIsDisplayed().performClick()
-        composeRule.runOnIdle { assertTrue(dictation.state is ConversationDictationState.Idle) }
+    }
+
+    private fun finishDictationSend(
+        name: String,
+        identity: Any?,
+        restingHeight: Float,
+    ) {
+        composeRule.runOnIdle {
+            val view = requireNotNull(readerView)
+            ViewCompat.dispatchApplyWindowInsets(
+                view.rootView,
+                WindowInsetsCompat.Builder()
+                    .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 280))
+                    .setVisible(WindowInsetsCompat.Type.ime(), true)
+                    .build(),
+            )
+        }
+        composeRule.onNodeWithContentDescription("Send").performClick()
+        composeRule.runOnIdle { Platform.listener.onResult("Dictated reader reply") }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(MESSAGE_FULL_SCREEN_TAG).assertDoesNotExist()
+        composeRule.runOnIdle {
+            assertEquals(1, reveals)
+            assertSame(identity, composerIdentity)
+        }
+        val returned = composeRule.onNodeWithTag("reader-composer-host")
+        val returnedBounds = returned.getUnclippedBoundsInRoot()
+        assertEquals(
+            "Closed reader IME must not reserve keyboard space",
+            restingHeight,
+            (returnedBounds.bottom - returnedBounds.top).value,
+            1f,
+        )
+        returned.captureRoboImage("src/test/snapshots/$name.png")
     }
 
     @Composable
@@ -142,10 +234,8 @@ class ReaderComposerControlsScreenshotTest {
     }
 
     @Composable
-    private fun Reader(
-        host: ConversationReaderComposer,
-        open: MutableState<Boolean>,
-    ) {
+    private fun Reader() {
+        val session = readerState.expandedFullViewSession
         MessageFullScreenView(
             senderDisplayName = "Alice",
             senderSeed = "alice",
@@ -165,18 +255,27 @@ class ReaderComposerControlsScreenshotTest {
             onReact = {},
             onCopy = {},
             onDelete = {},
-            onDismiss = { open.value = false },
-            bottomBar = { host.Reader(onAfterSend = {}, onDismiss = { open.value = false }) },
+            onDismiss = { host.session?.onDismiss() },
+            bottomBar = {
+                readerView = LocalView.current
+                host.Reader(
+                    onAfterSend = { readerState.finishExpandedReaderSend(session) },
+                    onDismiss = { readerState.expandedFullView = false },
+                )
+            },
         )
     }
 
     private object Platform : ConversationDictationPlatform {
+        lateinit var listener: ReaderDictationListener
+
         override fun hasRecordAudioPermission() = true
 
         override fun recognitionAvailable() = true
 
-        override fun createSession(listener: ReaderDictationListener): ConversationDictationRecognitionSession =
-            object : ConversationDictationRecognitionSession {
+        override fun createSession(listener: ReaderDictationListener): ConversationDictationRecognitionSession {
+            this.listener = listener
+            return object : ConversationDictationRecognitionSession {
                 override fun start() = Unit
 
                 override fun stop() = Unit
@@ -185,5 +284,6 @@ class ReaderComposerControlsScreenshotTest {
 
                 override fun destroy() = Unit
             }
+        }
     }
 }

@@ -3712,6 +3712,7 @@ internal fun ConversationScreen(
     }
     draftLoadEffect()
     val restoredDraftSnapshot = appState.draftSnapshotFor(draftAccountRef, controller.group.groupIdHex)
+    val readerComposer = remember(conversationAccountRef, controller.group.groupIdHex) { ConversationReaderComposer() }
     val composerShareRevision =
         rememberComposerShareRevision(
             externalRevision = appState.inboundShareRevision,
@@ -3743,8 +3744,10 @@ internal fun ConversationScreen(
                 return@LaunchedEffect
             }
             observedDictatedPendingSendRevision = dictatedPendingSendRevision
-            acceptedSendRevealedTranscript = true
-            revealSentMessage()
+            if (!readerComposer.onDictationSendAccepted()) {
+                acceptedSendRevealedTranscript = true
+                revealSentMessage()
+            }
         }
     }
     dictatedSendRevealEffect()
@@ -3857,7 +3860,6 @@ internal fun ConversationScreen(
                 forwardPayloads = batchSelectionUi.forwardPayloads,
             )
     }
-    val readerComposer = remember(conversationAccountRef, controller.group.groupIdHex) { ConversationReaderComposer() }
     ComposerSendMotionMediaGate(composerSendMotion, mediaViewerSessionState, sendMotionEnabled)
     ComposerSendMotionHost(composerSendMotion, surfaceMotionEnabled) {
         WhiteNoiseScaffold(

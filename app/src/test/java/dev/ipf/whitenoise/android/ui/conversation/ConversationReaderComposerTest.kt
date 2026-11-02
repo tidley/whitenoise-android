@@ -29,6 +29,52 @@ class ConversationReaderComposerTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
+    fun dictatedSendUsesTheSameAcceptedReaderHandoff() {
+        val host = ConversationReaderComposer()
+        var accepted = 0
+        val reader = ConversationReaderComposer.Session({ accepted++ }, {})
+        host.attach(reader)
+        host.onDictationSendRequested()
+        assertEquals(0, accepted)
+        assertEquals(true, host.onDictationSendAccepted())
+        assertEquals(1, accepted)
+    }
+
+    @Test
+    fun lateDictatedSendCannotDismissOrScrollAwayANewerReader() {
+        val host = ConversationReaderComposer()
+        var accepted = 0
+        val first = ConversationReaderComposer.Session({ accepted++ }, {})
+        val replacement = ConversationReaderComposer.Session({ accepted++ }, {})
+        host.attach(first)
+        host.onDictationSendRequested()
+        host.detach(first)
+        host.attach(replacement)
+        assertEquals(true, host.onDictationSendAccepted())
+        assertEquals(0, accepted)
+        assertSame(replacement, host.session)
+    }
+
+    @Test
+    fun dictatedSendWithoutAnOpenReaderUsesTheNormalTimelineReveal() {
+        val host = ConversationReaderComposer()
+        val reader = ConversationReaderComposer.Session({}, {})
+        host.attach(reader)
+        host.onDictationSendRequested()
+        host.detach(reader)
+        assertEquals(false, host.onDictationSendAccepted())
+    }
+
+    @Test
+    fun externalDictatedSendDoesNotScrollAwayAnUnrelatedOpenReader() {
+        val host = ConversationReaderComposer()
+        var accepted = 0
+        host.attach(ConversationReaderComposer.Session({ accepted++ }, {}))
+        assertEquals(true, host.onDictationSendAccepted())
+        assertEquals(0, accepted)
+    }
+
+    @Test
     fun staleReaderDisposalCannotDetachItsReplacement() {
         val host = ConversationReaderComposer()
         val first = ConversationReaderComposer.Session({}, {})

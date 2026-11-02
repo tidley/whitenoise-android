@@ -9,6 +9,30 @@ import java.io.File
 
 class LongMessageFullScreenComposerCoverageTest {
     @Test
+    fun dictatedSendReturnsTheReaderComposerBeforeRevealingTheTimeline() {
+        val screen = conversationSource("ConversationScreen.kt").readText()
+        val reveal = screen.functionBody("dictatedSendRevealEffect")
+        assertTrue(
+            "Dictation must use the reader's accepted-send handoff before scrolling its owning row away",
+            "if (!readerComposer.onDictationSendAccepted())" in reveal,
+        )
+        val controls = conversationSource("composer/ConversationDictationControls.kt").readText()
+        val actions = controls.functionBody("ConversationDictationActiveActions")
+        assertTrue(
+            "Send must capture the reader session before dispatch, not after a late result",
+            actions.indexOf("onDictationSendRequested()") in 0 until actions.indexOf("controller.send()"),
+        )
+        val recovery =
+            conversationSource("composer/ConversationDictationRecoveryActions.kt").readText()
+                .functionBody("ConversationDictationFailureAction")
+        assertTrue(
+            "Retry Send must capture its reader, but paste-only recovery must not",
+            "if (retrySend && !state.recognitionIncomplete) readerComposer?.onDictationSendRequested()" in recovery &&
+                recovery.indexOf("onDictationSendRequested()") < recovery.indexOf("recover()"),
+        )
+    }
+
+    @Test
     fun readerMovesTheFullyWiredComposerInsteadOfCreatingAPartialCopy() {
         val bubble = messageBubbleSource().readText().functionBody("MessageBubble")
         val reader = bubble.substringAfter("MessageFullScreenView(").substringBefore("if (surfaces.emojiPickerOpen")

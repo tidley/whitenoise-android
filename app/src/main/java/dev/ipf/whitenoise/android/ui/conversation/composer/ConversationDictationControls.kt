@@ -60,6 +60,7 @@ import dev.ipf.whitenoise.android.audio.ConversationDictationState
 import dev.ipf.whitenoise.android.audio.requiresCompletionControls
 import dev.ipf.whitenoise.android.ui.common.AccountActionColors
 import dev.ipf.whitenoise.android.ui.common.accountActionColors
+import dev.ipf.whitenoise.android.ui.conversation.LocalConversationReaderComposer
 import dev.ipf.whitenoise.android.ui.icons.Icons
 import dev.ipf.whitenoise.android.ui.icons.filled.Close
 import dev.ipf.whitenoise.android.ui.icons.filled.ContentPaste
@@ -228,6 +229,11 @@ private fun ConversationDictationActiveActions(
     controller: ConversationDictationController,
     actionColors: AccountActionColors,
 ) {
+    val readerComposer = LocalConversationReaderComposer.current
+    val send: () -> Unit = {
+        readerComposer?.onDictationSendRequested()
+        controller.send()
+    }
     val sendLabel = stringResource(R.string.send)
     if (controller.captureInProgress) {
         ConversationDictationListeningIndicator()
@@ -242,7 +248,7 @@ private fun ConversationDictationActiveActions(
     ConversationDictationPasteAction(controller)
     if (controller.processingDeliveryMode == ConversationDictationDeliveryMode.SendOnFinish) {
         IconButton(
-            onClick = controller::send,
+            onClick = send,
             enabled = controller.completionActionsEnabled,
             modifier =
                 Modifier.size(48.dp).semantics {
@@ -264,7 +270,7 @@ private fun ConversationDictationActiveActions(
         // The same disc the composer sends with: sending a dictation is sending a message, and the
         // two should not look like different actions.
         ComposerActionDisc(
-            onClick = controller::send,
+            onClick = send,
             containerColor = actionColors.container,
             contentColor = actionColors.content,
             description = sendLabel,

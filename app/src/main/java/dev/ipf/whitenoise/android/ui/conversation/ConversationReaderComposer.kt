@@ -36,6 +36,21 @@ internal class ConversationReaderComposer {
         private set
 
     private var content by mutableStateOf<(@Composable () -> Unit)?>(null)
+    private var dictationSendReader: Session? = null
+
+    internal fun onDictationSendRequested() {
+        dictationSendReader = session
+    }
+
+    /** A reader must return its composer before the timeline can recycle its owning row. */
+    internal fun onDictationSendAccepted(): Boolean {
+        val requestedReader = dictationSendReader
+        dictationSendReader = null
+        val currentReader = session ?: return false
+        if (requestedReader === currentReader) currentReader.onAfterSend()
+        // Keep a newer/unrelated reader open rather than scrolling its row out from under its dialog.
+        return true
+    }
 
     internal fun attach(reader: Session) {
         session = reader
@@ -55,7 +70,10 @@ internal class ConversationReaderComposer {
         val movable =
             remember(this) {
                 movableContentOf {
-                    CompositionLocalProvider(LocalComposerSendMotion provides motion.takeIf { session == null }) {
+                    CompositionLocalProvider(
+                        LocalComposerSendMotion provides motion.takeIf { session == null },
+                        LocalConversationReaderComposer provides this@ConversationReaderComposer,
+                    ) {
                         latestBody()
                     }
                 }
