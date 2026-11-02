@@ -83,11 +83,15 @@ class ReaderComposerControlsScreenshotTest {
 
     @Test fun largeRtlReaderControls() = capture("reader_composer_controls_large_rtl", rtl = true)
 
-    @Test fun dictatedSendReturnsWithoutKeyboardGapLight() =
+    @Test
+    fun dictatedSendReturnsWithoutKeyboardGapLight() {
         capture("reader_dictation_return_no_keyboard_gap_light", finishSend = true)
+    }
 
-    @Test fun dictatedSendReturnsWithoutKeyboardGapDark() =
+    @Test
+    fun dictatedSendReturnsWithoutKeyboardGapDark() {
         capture("reader_dictation_return_no_keyboard_gap_dark", dark = true, finishSend = true)
+    }
 
     private fun capture(
         name: String,
@@ -186,7 +190,8 @@ class ReaderComposerControlsScreenshotTest {
             val view = requireNotNull(readerView)
             ViewCompat.dispatchApplyWindowInsets(
                 view.rootView,
-                WindowInsetsCompat.Builder()
+                WindowInsetsCompat
+                    .Builder()
                     .setInsets(WindowInsetsCompat.Type.ime(), Insets.of(0, 0, 0, 280))
                     .setVisible(WindowInsetsCompat.Type.ime(), true)
                     .build(),

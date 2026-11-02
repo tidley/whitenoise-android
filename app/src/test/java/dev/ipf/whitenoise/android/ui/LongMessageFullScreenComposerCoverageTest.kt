@@ -23,7 +23,8 @@ class LongMessageFullScreenComposerCoverageTest {
             actions.indexOf("onDictationSendRequested()") in 0 until actions.indexOf("controller.send()"),
         )
         val recovery =
-            conversationSource("composer/ConversationDictationRecoveryActions.kt").readText()
+            conversationSource("composer/ConversationDictationRecoveryActions.kt")
+                .readText()
                 .functionBody("ConversationDictationFailureAction")
         assertTrue(
             "Retry Send must capture its reader, but paste-only recovery must not",
