@@ -280,7 +280,7 @@ internal fun ConversationBottomBar(
                             editingMessageId = controller.editingMessageId,
                             editingInitialText = editingRecord?.let { controller.displayedText(it) },
                             onCancelEdit = controller::cancelMessageEdit,
-                            onAfterSend = readerSession?.onAfterSend ?: onAfterSend,
+                            onAfterSend = readerComposer.captureComposerSendAccepted(onAfterSend),
                             onPickFromGallery = { handoff(onPickFromGallery) },
                             onCaptureFromCamera = { handoff(onCaptureFromCamera) },
                             onPickDocument = { handoff(onPickDocument) },

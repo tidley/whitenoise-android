@@ -59,6 +59,7 @@ import dev.ipf.whitenoise.android.media.sandbox.MediaDecodeTransport
 import dev.ipf.whitenoise.android.media.sandbox.MediaTrustScope
 import dev.ipf.whitenoise.android.media.sandbox.TestMediaDecodeTransport
 import dev.ipf.whitenoise.android.ui.conversation.ConversationMediaSender
+import dev.ipf.whitenoise.android.ui.conversation.ConversationReaderComposer
 import dev.ipf.whitenoise.android.ui.conversation.ConversationScrollCoordinator
 import dev.ipf.whitenoise.android.ui.conversation.ConversationScrollMode
 import dev.ipf.whitenoise.android.ui.conversation.ConversationScrollWriter
@@ -93,6 +94,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -1436,6 +1438,46 @@ private fun mediaAdmissionBoundary(
     } as MarmotInterface
 }
 
+/** Observes the real sender's acceptance separately from its optimistic timeline notification. */
+private class MediaReaderAcceptanceFixture {
+    private val host = ConversationReaderComposer()
+    private var handoffs = 0
+    private var reveals = 0
+    private val reader =
+        ConversationReaderComposer.Session(
+            onAfterSend = {
+                handoffs++
+                host.session?.let(host::detach)
+                reveals++
+            },
+            dismiss = {},
+        )
+
+    init {
+        host.attach(reader)
+    }
+
+    private val accept = host.captureSendAccepted()
+
+    fun optimistic() = host.revealIfNoReader { reveals++ }
+
+    fun accepted() {
+        accept()
+    }
+
+    fun assertRetained() {
+        assertSame(reader, host.session)
+        assertEquals(0, handoffs)
+        assertEquals(0, reveals)
+    }
+
+    fun assertCompleted() {
+        assertNull(host.session)
+        assertEquals(1, handoffs)
+        assertEquals(1, reveals)
+    }
+}
+
 /** Exercises retry settlement through the shipping media sender and reviewed recording owner together. */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [36], qualifiers = "en")
@@ -1461,9 +1503,10 @@ class ConversationVoiceReplyRetryTest {
                 .apply { isAccessible = true }
                 .set(state, AppMarmotRuntime("test", engine))
             val controller = voiceRetryController(state)
-            val sender = ConversationMediaSender(state, controller, ApplicationProvider.getApplicationContext()) {}
+            val reader = MediaReaderAcceptanceFixture()
+            val sender = ConversationMediaSender(state, controller, state.appContext, onRevealSent = reader::optimistic)
             val rejected = CompletableDeferred<Unit>()
-            val review = voiceRetryReview(this, sender, rejected)
+            val review = voiceRetryReview(this, sender, rejected, reader::accepted)
             val recording =
                 java.io.File
                     .createTempFile("voice-reply", ".m4a")
@@ -1486,6 +1529,7 @@ class ConversationVoiceReplyRetryTest {
                 )
                 assertTrue(review.clip === clip)
                 assertTrue(recording.exists())
+                reader.assertRetained()
                 val failed = controller.timeline.single()
                 assertEquals(MessageStatus.Failed, failed.status)
                 controller.retryFailedSend(failed)
@@ -1494,12 +1538,95 @@ class ConversationVoiceReplyRetryTest {
                 assertFalse(review.send(clip))
                 assertEquals(2, uploads)
                 assertEquals(1, calls.count { it == "sendMessageDraftWithClientToken" })
+                reader.assertCompleted()
             } finally {
                 review.release()
                 finishMediaFixture(controller, state)
                 Dispatchers.resetMain()
             }
         }
+}
+
+/** Staged replies retain their reader and caption until the failed logical send succeeds on Retry. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36], qualifiers = "en")
+class ConversationReaderAttachmentReplyRetryTest {
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun failedAttachmentReplyKeepsReaderAndDraftUntilBubbleRetry() =
+        runTest {
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+            val state = mediaSendReconciliationAppState()
+            val calls = mutableListOf<String>()
+            val target = "e1".repeat(32)
+            val reference = mediaReference().copy(fileName = "report.pdf", mediaType = "application/pdf")
+            var uploads = 0
+            val engine = mediaAdmissionBoundary(target, reference, calls) {
+                uploads++
+                if (uploads == 1) error("controlled upload failure")
+            }
+            state.installReaderReplyRuntime(engine)
+            val controller = voiceRetryController(state)
+            val reader = MediaReaderAcceptanceFixture()
+            val sender =
+                ConversationMediaSender(state, controller, state.appContext, fileBackedLimits = ::senderLimits) {}
+            val rejected = CompletableDeferred<Unit>()
+            val uri = scriptedDocument(state)
+            try {
+                controller.retryMembers()
+                prepareReaderAttachmentReply(state, controller, reference, target)
+                val attachment = PendingAttachment(byteArrayOf(1, 2, 3), "application/pdf", "report.pdf")
+                sender.sendStagedAttachments(
+                    imageSlots = emptyList(),
+                    documentUris = listOf(uri),
+                    caption = "Retained caption",
+                    preparedDocumentAttachments = mapOf(uri to attachment),
+                    onRejected = { rejected.complete(Unit) },
+                    onSettled = reader::accepted,
+                    onAfterSend = reader::optimistic,
+                )
+                rejected.await()
+                reader.assertRetained()
+                val draft = state.draftStore.getDraft(controller.boundAccountRef, controller.group.groupIdHex)
+                assertEquals("Retained caption", draft?.textFieldValue?.text)
+                val failed = controller.timeline.single()
+                assertEquals(MessageStatus.Failed, failed.status)
+                assertTrue(controller.pendingAttachmentsList(failed.record.messageIdHex).isNotEmpty())
+                controller.retryFailedSend(failed)
+                reader.assertCompleted()
+                val cleared = state.draftStore.getDraft(controller.boundAccountRef, controller.group.groupIdHex)
+                assertTrue(cleared?.textFieldValue?.text.isNullOrEmpty())
+                assertEquals(2, uploads)
+            } finally {
+                ScriptedPickProvider.picks.clear()
+                finishMediaFixture(controller, state)
+                Dispatchers.resetMain()
+            }
+        }
+}
+
+/** Installs the existing synthetic native boundary without starting a real runtime. */
+private fun WhiteNoiseAppState.installReaderReplyRuntime(engine: MarmotInterface) {
+    WhiteNoiseAppState::class.java
+        .getDeclaredField("marmotRuntime")
+        .apply { isAccessible = true }
+        .set(this, AppMarmotRuntime("test", engine))
+}
+
+/** Seeds the exact reply target and caption before the sender captures its draft token. */
+private fun prepareReaderAttachmentReply(
+    state: WhiteNoiseAppState,
+    controller: ConversationController,
+    reference: MediaAttachmentReferenceFfi,
+    target: String,
+) {
+    controller.replyingTo =
+        TimelineProjector.toAppMessageRecord(projectedMediaMessage(1uL, reference)).copy(messageIdHex = target)
+    state.setDraft(
+        controller.boundAccountRef,
+        controller.group.groupIdHex,
+        androidx.compose.ui.text.input.TextFieldValue("Retained caption"),
+    )
 }
 
 /** Supplies authoritative send permission and a non-blocking Markdown fixture for the real voice sender. */
@@ -1518,13 +1645,14 @@ private fun voiceRetryReview(
     scope: CoroutineScope,
     sender: ConversationMediaSender,
     rejected: CompletableDeferred<Unit>,
+    onAccepted: () -> Unit,
 ) = VoiceRecordingReview(
     scope = scope,
     ownerIsCurrent = { true },
     send = { file, duration, guard, complete ->
         sender.sendVoiceAttachment(file, duration, guard) { accepted ->
             complete(accepted)
-            if (!accepted) rejected.complete(Unit)
+            if (accepted) onAccepted() else rejected.complete(Unit)
         }
     },
 )

@@ -1779,14 +1779,11 @@ internal fun ConversationScreen(
     val context = LocalContext.current
     val documentSaveFallback = rememberDocumentSaveFallback(appState, controller.group.groupIdHex)
 
-    /** Defers media reveal until its submitting reader has returned the shared composer. */
-    fun readerAwareSendReveal(): () -> Unit {
-        val readerAccepted = readerComposer.captureSendAccepted()
-        return {
-            if (!readerAccepted()) {
-                acceptedSendRevealedTranscript = true
-                revealSentMessage()
-            }
+    /** Optimistic media reveal cannot dismiss an unaccepted reply or displace an unrelated reader. */
+    fun revealMediaIfNoReader() {
+        readerComposer.revealIfNoReader {
+            acceptedSendRevealedTranscript = true
+            revealSentMessage()
         }
     }
 
@@ -1795,7 +1792,7 @@ internal fun ConversationScreen(
             appState = appState,
             controller = controller,
             context = context,
-            onRevealSent = { revealSentMessage() },
+            onRevealSent = { revealMediaIfNoReader() },
         )
     val collectionPanels = rememberAttachmentCollectionPanels(appState, controller, mediaSender)
     val clipboard = LocalClipboardManager.current
@@ -2159,13 +2156,16 @@ internal fun ConversationScreen(
                         controller.boundAccountRef == conversationAccountRef
                 },
                 send = { file, duration, canSend, onQueued ->
-                    val onAfterSend = readerAwareSendReveal()
+                    val readerAccepted = readerComposer.captureSendAccepted()
                     mediaSender.sendVoiceAttachment(
                         file,
                         duration,
                         canSend,
-                        onAfterSend = onAfterSend,
-                        onQueued = onQueued,
+                        onAfterSend = { revealMediaIfNoReader() },
+                        onQueued = { accepted ->
+                            onQueued(accepted)
+                            if (accepted) readerAccepted()
+                        },
                     )
                 },
                 onSendFailure = { appState.present(R.string.send_failed) },
@@ -3739,6 +3739,7 @@ internal fun ConversationScreen(
             val sendingMedia = pendingMediaSlots
             val sendingDocuments = pendingDocumentUris
             val canSettle = mediaDraftState.captureSendSettlement()
+            val readerAccepted = readerComposer.captureSendAccepted()
             mediaSender.sendStagedAttachments(
                 sendingMedia,
                 sendingDocuments,
@@ -3757,10 +3758,11 @@ internal fun ConversationScreen(
                         pendingDocumentUris =
                             removeAcceptedDocumentOccurrences(pendingDocumentUris, sendingDocuments)
                     }
+                    readerAccepted()
                 },
                 onAccepted = onAccepted,
                 onRejected = onRejected,
-                onAfterSend = readerAwareSendReveal(),
+                onAfterSend = { revealMediaIfNoReader() },
             )
         }
     }

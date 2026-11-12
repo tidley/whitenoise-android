@@ -14,22 +14,27 @@ class LongMessageFullScreenComposerCoverageTest {
         val attachments = screen.functionBody("sendStagedAttachmentsWithCaption")
         assertTrue(
             "Attachment acceptance must use a captured reader handoff",
-            "onAfterSend = readerAwareSendReveal()" in attachments,
+            "val readerAccepted = readerComposer.captureSendAccepted()" in attachments &&
+                "readerAccepted()" in attachments.substringAfter("onSettled = {"),
         )
         val voiceDispatch =
             screen.substringAfter("send = { file, duration, canSend, onQueued ->").substringBefore("onSendFailure")
         assertTrue(
             "Voice review must capture a handoff for each Send, not for the lifetime of the recorder",
-            "val onAfterSend = readerAwareSendReveal()" in voiceDispatch &&
-                "onAfterSend = onAfterSend" in voiceDispatch &&
-                "onQueued = onQueued" in voiceDispatch,
+            "val readerAccepted = readerComposer.captureSendAccepted()" in voiceDispatch &&
+                "if (accepted) readerAccepted()" in voiceDispatch.substringAfter("onQueued = {") &&
+                "onAfterSend = { revealMediaIfNoReader() }" in voiceDispatch,
         )
-        val reveal = screen.functionBody("readerAwareSendReveal")
+        val reveal = screen.functionBody("revealMediaIfNoReader")
         assertTrue(
-            "Capture the submitting reader before asynchronous acceptance",
-            "readerComposer.captureSendAccepted()" in reveal,
+            "Optimistic media reveal must never accept or displace a reader",
+            "readerComposer.revealIfNoReader" in reveal && "readerAccepted" !in reveal,
         )
-        assertTrue("Only the normal conversation may reveal immediately", "if (!readerAccepted())" in reveal)
+        val bottomBar = conversationSource("ConversationBottomBar.kt").readText()
+        assertTrue(
+            "Delayed composer completion must retain its submitting session and guard newer readers",
+            "onAfterSend = readerComposer.captureComposerSendAccepted(onAfterSend)" in bottomBar,
+        )
         val voice = conversationSource("ConversationMediaSender.kt").readText().functionBody("sendVoiceAttachment")
         assertTrue("Voice acceptance must invoke its reader-aware reveal", "onAfterSend()" in voice)
         assertFalse("Voice acceptance cannot bypass its handoff", "onRevealSent()" in voice)

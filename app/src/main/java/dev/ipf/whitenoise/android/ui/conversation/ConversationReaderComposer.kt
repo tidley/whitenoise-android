@@ -44,6 +44,17 @@ internal class ConversationReaderComposer {
         return { onSendAccepted(submittingReader) }
     }
 
+    /** A delayed composer result must not reveal the timeline beneath a reader opened meanwhile. */
+    internal fun captureComposerSendAccepted(reveal: () -> Unit): () -> Unit {
+        val accepted = captureSendAccepted()
+        return { if (!accepted()) reveal() }
+    }
+
+    /** Optimistic media visibility is not reader acceptance. */
+    internal fun revealIfNoReader(reveal: () -> Unit) {
+        if (session == null) reveal()
+    }
+
     internal fun onDictationSendRequested() {
         dictationSendReader = session
     }
